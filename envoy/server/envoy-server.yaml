@@ -1,0 +1,86 @@
+# Envoy SERVER sidecar (MCP stack).
+# Terminates mTLS on :9000, requiring a client SVID of spiffe://ethandemo.com/agent,
+# then forwards plain HTTP to the local MCP server. Presents its own SVID
+# spiffe://ethandemo.com/mcp-server. Certs/trust bundle come from SPIRE via SDS.
+admin:
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 19001 }
+
+static_resources:
+  listeners:
+    - name: inbound
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 9000 }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: mcp_local
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: "/" }
+                          route: { cluster: mcp_local, timeout: 0s }
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              require_client_certificate: true
+              common_tls_context:
+                tls_certificate_sds_secret_configs:
+                  - name: "spiffe://ethandemo.com/mcp-server"
+                    sds_config:
+                      resource_api_version: V3
+                      api_config_source:
+                        api_type: GRPC
+                        transport_api_version: V3
+                        grpc_services:
+                          - envoy_grpc: { cluster_name: spire_agent }
+                combined_validation_context:
+                  default_validation_context:
+                    match_typed_subject_alt_names:
+                      - san_type: URI
+                        matcher: { exact: "spiffe://ethandemo.com/agent" }
+                  validation_context_sds_secret_config:
+                    name: "spiffe://ethandemo.com"
+                    sds_config:
+                      resource_api_version: V3
+                      api_config_source:
+                        api_type: GRPC
+                        transport_api_version: V3
+                        grpc_services:
+                          - envoy_grpc: { cluster_name: spire_agent }
+
+  clusters:
+    - name: spire_agent
+      connect_timeout: 1s
+      http2_protocol_options: {}
+      load_assignment:
+        cluster_name: spire_agent
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    pipe: { path: /tmp/spire-sockets/api.sock }
+
+    # Local MCP server (plain HTTP) over the shared netns loopback. MCP binds
+    # 127.0.0.1:8000, so it is ONLY reachable through this mTLS sidecar.
+    - name: mcp_local
+      connect_timeout: 5s
+      type: STATIC
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: mcp_local
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: 127.0.0.1, port_value: 8000 }

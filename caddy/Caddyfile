@@ -1,0 +1,22 @@
+# Public edge. Caddy obtains a Let's Encrypt cert for the public domain and:
+#   - serves the SPIRE OIDC discovery document + JWKS (so external verifiers,
+#     e.g. Azure workload-identity federation, can validate JWT-SVIDs), and
+#   - reverse-proxies everything else to Open WebUI (user SSO login lands here).
+{
+	email {$ACME_EMAIL}
+}
+
+{$PUBLIC_DOMAIN} {
+	# SPIRE OIDC Discovery Provider (unix socket shared via the oidc-sock volume)
+	handle /.well-known/openid-configuration {
+		reverse_proxy unix//run/oidc/server.sock
+	}
+	handle /keys {
+		reverse_proxy unix//run/oidc/server.sock
+	}
+
+	# Everything else -> Open WebUI
+	handle {
+		reverse_proxy open-webui:8080
+	}
+}

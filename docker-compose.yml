@@ -1,0 +1,210 @@
+# SPIFFE / SPIRE zero-trust demo
+#
+# Architecture (see lab.jpeg):
+#   Human User --OIDC/SSO--> Open WebUI (Entra login)
+#   Open WebUI --plain HTTP--> envoy-client:10000 --mTLS--> envoy-server:9000 --plain HTTP--> mcp-server:8000
+#   SPIRE (server+agent) issues X.509-SVIDs to the Envoy sidecars via SDS over a shared UDS.
+#   oidc-discovery-provider serves JWKS; Caddy publishes it at https://${PUBLIC_DOMAIN}.
+#   The "hacker" container has no sidecar / no SVID and is rejected by mTLS.
+#
+# Trust domain: ethandemo.com
+#   spiffe://ethandemo.com/agent        -> AI Agent (Open WebUI) side, selector docker:label:app:openwebui
+#   spiffe://ethandemo.com/mcp-server   -> MCP side,               selector docker:label:app:mcp-server
+
+networks:
+  spiffe-net:
+    driver: bridge
+
+volumes:
+  spire-server-data:
+  spire-agent-data:
+  spire-sockets:      # shared SPIRE agent Workload API / SDS socket (/tmp/spire-sockets/api.sock)
+  spire-bootstrap:    # one-time join token handoff from server -> agent
+  oidc-sock:          # unix socket between oidc-discovery-provider and caddy
+  caddy-data:
+  caddy-config:
+  openwebui-data:
+  mcp-data:
+
+services:
+  # ------------------------------------------------------------------ SPIRE control plane
+  spire-server:
+    build: ./spire
+    image: spiffe-demo/spire:local
+    hostname: spire-server
+    environment:
+      - TRUST_DOMAIN=${TRUST_DOMAIN:-ethandemo.com}
+    entrypoint: ["/bin/bash", "/opt/spire/scripts/server-entrypoint.sh"]
+    volumes:
+      - ./spire/server/server.conf:/opt/spire/conf/server/server.conf:ro
+      - ./scripts/server-entrypoint.sh:/opt/spire/scripts/server-entrypoint.sh:ro
+      - ./scripts/register-entries.sh:/opt/spire/scripts/register-entries.sh:ro
+      - spire-server-data:/opt/spire/data/server
+      - spire-bootstrap:/run/spire/bootstrap
+    networks: [spiffe-net]
+
+  spire-agent:
+    build: ./spire
+    image: spiffe-demo/spire:local
+    hostname: spire-agent
+    depends_on: [spire-server]
+    # pid:host is required so the docker workload attestor can resolve the
+    # caller PID (from SO_PEERCRED on the UDS) to a container + its labels.
+    pid: "host"
+    environment:
+      - TRUST_DOMAIN=${TRUST_DOMAIN:-ethandemo.com}
+    entrypoint: ["/bin/bash", "/opt/spire/scripts/agent-entrypoint.sh"]
+    volumes:
+      - ./spire/agent/agent.conf:/opt/spire/conf/agent/agent.conf:ro
+      - ./scripts/agent-entrypoint.sh:/opt/spire/scripts/agent-entrypoint.sh:ro
+      - spire-agent-data:/opt/spire/data/agent
+      - spire-bootstrap:/run/spire/bootstrap
+      - spire-sockets:/tmp/spire-sockets
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [spiffe-net]
+
+  oidc-discovery-provider:
+    image: ghcr.io/spiffe/oidc-discovery-provider:1.9.6
+    depends_on: [spire-agent]
+    command: ["-config", "/conf/oidc-discovery-provider.conf"]
+    volumes:
+      - ./spire/oidc-discovery-provider/oidc-discovery-provider.conf:/conf/oidc-discovery-provider.conf:ro
+      - spire-sockets:/tmp/spire-sockets
+      - oidc-sock:/run/oidc
+    networks: [spiffe-net]
+
+  # ------------------------------------------------------------------ Edge / TLS
+  caddy:
+    image: caddy:2.8
+    depends_on: [oidc-discovery-provider, open-webui]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-spiffe.ethandemo.com}
+      - ACME_EMAIL=${ACME_EMAIL:-admin@ethandemo.com}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - oidc-sock:/run/oidc:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [spiffe-net]
+
+  # ------------------------------------------------------------------ Data plane: AI Agent stack (app=openwebui)
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    hostname: open-webui
+    labels:
+      - "app=openwebui"
+    environment:
+      - WEBUI_URL=${WEBUI_URL:-https://spiffe.ethandemo.com}
+      - ENABLE_OAUTH_SIGNUP=true
+      - OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true
+      # Microsoft Entra ID (native "microsoft" provider). Redirect URI to register:
+      #   https://<PUBLIC_DOMAIN>/oauth/microsoft/callback
+      - MICROSOFT_CLIENT_ID=${ENTRA_CLIENT_ID}
+      - MICROSOFT_CLIENT_SECRET=${ENTRA_CLIENT_SECRET}
+      - MICROSOFT_CLIENT_TENANT_ID=${ENTRA_TENANT_ID}
+      - MICROSOFT_OAUTH_SCOPE=openid email profile
+      # Forward X-OpenWebUI-User-* headers to tool servers (see README for OAuth-token forwarding).
+      - ENABLE_FORWARD_USER_INFO_HEADERS=true
+    volumes:
+      - openwebui-data:/app/backend/data
+    networks: [spiffe-net]
+
+  envoy-client:
+    image: envoyproxy/envoy:v1.31-latest
+    # True sidecar: shares Open WebUI's network namespace, so the app reaches it at
+    # http://localhost:10000 and MCP traffic is transparently upgraded to mTLS.
+    # (No own hostname/networks/ports when using network_mode: service:X.)
+    network_mode: "service:open-webui"
+    depends_on: [open-webui, spire-agent]
+    labels:
+      - "app=openwebui"   # -> SPIFFE ID spiffe://ethandemo.com/agent
+    command: ["-c", "/etc/envoy/envoy.yaml", "--service-cluster", "envoy-client", "-l", "info"]
+    volumes:
+      - ./envoy/client/envoy-client.yaml:/etc/envoy/envoy.yaml:ro
+      - spire-sockets:/tmp/spire-sockets
+
+  # ------------------------------------------------------------------ Data plane: MCP Server stack (app=mcp-server)
+  mcp-server:
+    build: ./mcp-server
+    image: spiffe-demo/mcp-server:local
+    hostname: mcp-server
+    labels:
+      - "app=mcp-server"
+    environment:
+      - DB_PATH=/data/demo.db
+      - REQUIRE_ENTRA_TOKEN=${REQUIRE_ENTRA_TOKEN:-false}
+      - ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-}
+      - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID:-}
+    volumes:
+      - mcp-data:/data
+    networks: [spiffe-net]
+
+  envoy-server:
+    image: envoyproxy/envoy:v1.31-latest
+    # True sidecar: shares the MCP server's network namespace and forwards to it over
+    # 127.0.0.1. The mTLS listener :9000 is reachable on the network as mcp-server:9000.
+    network_mode: "service:mcp-server"
+    depends_on: [mcp-server, spire-agent]
+    labels:
+      - "app=mcp-server"  # -> SPIFFE ID spiffe://ethandemo.com/mcp-server
+    command: ["-c", "/etc/envoy/envoy.yaml", "--service-cluster", "envoy-server", "-l", "info"]
+    volumes:
+      - ./envoy/server/envoy-server.yaml:/etc/envoy/envoy.yaml:ro
+      - spire-sockets:/tmp/spire-sockets
+
+  # ------------------------------------------------------------------ Workload federation demo (SPIFFE JWT-SVID -> Entra)
+  # On-demand: `docker compose exec federation-demo /federate.sh`
+  # Uses its JWT-SVID as an OIDC client assertion to obtain an Entra token with NO secret.
+  federation-demo:
+    build: ./spire
+    image: spiffe-demo/spire:local
+    depends_on: [spire-agent]
+    labels:
+      - "app=openwebui"   # shares the agent identity spiffe://ethandemo.com/agent
+    # NOTE: intentionally NO ENTRA_CLIENT_SECRET here — federation uses none.
+    environment:
+      - TRUST_DOMAIN=${TRUST_DOMAIN:-ethandemo.com}
+      - ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-}
+      - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID:-}
+      - KEY_VAULT_NAME=${KEY_VAULT_NAME:-}
+      - SECRET_NAME=${SECRET_NAME:-demo-secret}
+    entrypoint: ["sleep", "infinity"]
+    volumes:
+      - ./scripts/federate.sh:/federate.sh:ro
+      - spire-sockets:/tmp/spire-sockets
+    networks: [spiffe-net]
+
+  # Same code + a VALID SPIFFE identity, but the WRONG one (spiffe://ethandemo.com/mcp-server).
+  # Entra rejects it (AADSTS700213) because the subject doesn't match the Federated Credential.
+  # Run: docker compose exec federation-impostor /federate.sh
+  federation-impostor:
+    build: ./spire
+    image: spiffe-demo/spire:local
+    depends_on: [spire-agent]
+    labels:
+      - "app=mcp-server"  # -> spiffe://ethandemo.com/mcp-server (valid SVID, unauthorized subject)
+    environment:
+      - TRUST_DOMAIN=${TRUST_DOMAIN:-ethandemo.com}
+      - ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-}
+      - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID:-}
+      - KEY_VAULT_NAME=${KEY_VAULT_NAME:-}
+      - SECRET_NAME=${SECRET_NAME:-demo-secret}
+    entrypoint: ["sleep", "infinity"]
+    volumes:
+      - ./scripts/federate.sh:/federate.sh:ro
+      - spire-sockets:/tmp/spire-sockets
+    networks: [spiffe-net]
+
+  # ------------------------------------------------------------------ Untrusted: no sidecar, no SVID
+  hacker:
+    image: curlimages/curl:8.9.1
+    hostname: hacker
+    labels:
+      - "app=hacker"      # no matching registration entry -> no SVID
+    entrypoint: ["sleep", "infinity"]
+    volumes:
+      - ./hacker/attack.sh:/attack.sh:ro
+    networks: [spiffe-net]
