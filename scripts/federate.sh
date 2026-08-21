@@ -32,8 +32,16 @@ b64url_decode() {
 json_get() { printf '%s' "$1" | sed -n "s/.*\"$2\":\"\([^\"]*\)\".*/\1/p" | head -n1; }
 
 echo "== 1) Fetch JWT-SVID from SPIRE (audience=${AUDIENCE}) =="
-JWT="$(spire-agent api fetch jwt -audience "${AUDIENCE}" -socketPath "${SOCK}" \
-        | grep -A1 -m1 '^token(' | tail -n1 | tr -d '[:space:]')"
+# Capture the full output first, THEN extract. Piping spire-agent directly into
+# `grep -m1` makes grep close the pipe early, which SIGPIPE-kills spire-agent while
+# it is still writing the JWT bundle; under `set -o pipefail` that non-zero status
+# trips `set -e` and the script exits here intermittently with no error message.
+JWT_RAW="$(spire-agent api fetch jwt -audience "${AUDIENCE}" -socketPath "${SOCK}" 2>&1)" || {
+  echo "ERROR: spire-agent could not fetch a JWT-SVID:" >&2
+  printf '%s\n' "${JWT_RAW}" | head -n 3 >&2
+  exit 1
+}
+JWT="$(printf '%s\n' "${JWT_RAW}" | grep -A1 -m1 '^token(' | tail -n1 | tr -d '[:space:]')"
 if [[ -z "${JWT}" ]]; then
   echo "ERROR: no JWT-SVID returned. Is this container registered (matching docker label)?" >&2
   exit 1
