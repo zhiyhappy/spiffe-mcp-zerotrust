@@ -34,7 +34,7 @@ DC = "docker compose"  # v2 plugin, run from REPO_ROOT so ./.env is loaded
 STEPS = [
     {
         "id": "overview",
-        "title": "0 · 拓扑总览 / 组件状态",
+        "title": "1 · 拓扑总览 / 组件状态",
         "desc": "确认 SPIRE 控制面(server+agent)、两侧工作负载与 Envoy sidecar、"
                 "OIDC/Caddy 边缘,以及无身份的 hacker 容器均已就绪。",
         "cmd": f"{DC} ps",
@@ -46,7 +46,7 @@ STEPS = [
     },
     {
         "id": "registration",
-        "title": "1 · 组件注册(注册即授权)",
+        "title": "2 · 组件注册(注册即授权)",
         "desc": "在 SPIRE Server 为每个工作负载登记一条注册条目:docker 标签选择器 → SPIFFE ID"
                 "(选择器匹配到哪个容器,就给它颁发对应身份)。"
                 "这是整个系统唯一的授权来源:没有条目 = 没有身份。",
@@ -58,10 +58,10 @@ STEPS = [
     },
     {
         "id": "svid",
-        "title": "2 · 工作负载获取 SVID",
+        "title": "3 · 工作负载获取 SVID",
         "desc": "Agent 侧工作负载经 Workload API 向 SPIRE Agent 申请身份。"
                 "Agent 通过 docker 标签完成认证,签发 X.509-SVID —— 全程零密钥。"
-                "(记住这条命令:第 9 步撤销注册后,同一条命令会被拒绝。)",
+                "(记住这条命令:第 10 步撤销注册后,同一条命令会被拒绝。)",
         "cmd": f"{DC} exec -T federation-demo "
                "spire-agent api fetch x509 -socketPath /tmp/spire-sockets/api.sock",
         "nodes": ["spire-agent", "app"],
@@ -71,7 +71,7 @@ STEPS = [
     },
     {
         "id": "mtls",
-        "title": "3 · 持有 SVID 后相互访问(mTLS)",
+        "title": "4 · 持有 SVID 后相互访问(mTLS)",
         "desc": "Open WebUI → envoy-client → mTLS → envoy-server → MCP。"
                 "双方各自用 SVID 校验对端 SPIFFE ID,握手成功后返回真实员工数据。",
         "cmd": "bash scripts/mcp-call.sh list_employees",
@@ -82,7 +82,7 @@ STEPS = [
     },
     {
         "id": "hacker",
-        "title": "4 · 模拟 hacker 攻击(被拒)",
+        "title": "5 · 模拟 hacker 攻击(被拒)",
         "desc": "无 sidecar、无 SVID 的 hacker 容器尝试直连 mTLS 端口、绕过 sidecar 直击应用端口,"
                 "并查找 SPIRE socket —— 全部失败。",
         "cmd": f"{DC} exec -T hacker sh /attack.sh",
@@ -93,7 +93,7 @@ STEPS = [
     },
     {
         "id": "jwks",
-        "title": "5 · 身份公网可验证(JWKS)",
+        "title": "6 · 身份公网可验证(JWKS)",
         "desc": "OIDC Discovery Provider 经 Caddy 在公网发布 SPIRE 的 JWKS 与 OIDC 元数据,"
                 "使外部(如 Entra)可验证 SPIFFE 签发的 JWT-SVID。",
         "cmd": f"curl -sS https://{PUBLIC_DOMAIN}/.well-known/openid-configuration",
@@ -104,7 +104,7 @@ STEPS = [
     },
     {
         "id": "fed-legit",
-        "title": "6 · 零密钥云联邦(合法)",
+        "title": "7 · 零密钥云联邦(合法)",
         "desc": "Agent 用 JWT-SVID 作为 OIDC client assertion 向 Microsoft Entra 换取访问令牌 —— "
                 "不使用任何客户端密钥。Entra 通过公网 JWKS 验证该断言。",
         "cmd": f"{DC} exec -T federation-demo /federate.sh",
@@ -115,7 +115,7 @@ STEPS = [
     },
     {
         "id": "fed-impostor",
-        "title": "7 · 冒充身份联邦(被拒)",
+        "title": "8 · 冒充身份联邦(被拒)",
         "desc": "持有合法但错误 SPIFFE ID(/mcp-server)的容器尝试联邦。"
                 "Entra 因联邦凭据 subject 不匹配而拒绝(AADSTS700213)。",
         "cmd": f"{DC} exec -T federation-impostor /federate.sh",
@@ -126,7 +126,7 @@ STEPS = [
     },
     {
         "id": "revoke",
-        "title": "8 · 撤销 SVID 注册",
+        "title": "9 · 撤销 SVID 注册",
         "desc": "在 SPIRE Server 删除 /agent 的注册条目。约一个同步周期(~5 秒)后,"
                 "该工作负载将无法再获取或续期任何 SVID。"
                 "注意:已签发的短期 SVID 会继续有效直到其 TTL 到期 —— 这是 SPIFFE 的短期凭据模型,"
@@ -146,8 +146,8 @@ STEPS = [
     },
     {
         "id": "revoke-verify",
-        "title": "9 · 撤销后无法再获取身份",
-        "desc": "重跑第 2 步那条获取 SVID 的命令。注册已被撤销,Agent 立即拒绝签发新身份"
+        "title": "10 · 撤销后无法再获取身份",
+        "desc": "重跑第 3 步那条获取 SVID 的命令。注册已被撤销,Agent 立即拒绝签发新身份"
                 "(rpc PermissionDenied: no identity issued)。这就是撤销生效的直接证据:"
                 "该工作负载再也拿不到新的 SVID。",
         "cmd": f"{DC} exec -T federation-demo "
@@ -159,7 +159,7 @@ STEPS = [
     },
     {
         "id": "restore",
-        "title": "10 · 恢复注册",
+        "title": "11 · 恢复注册",
         "desc": "重新注册工作负载条目。约一个同步周期后,Agent 重新获得授权并可再次签发 SVID。",
         "cmd": (DC + " exec -T spire-server /opt/spire/scripts/register-entries.sh; "
                 "echo 'waiting 8s for agent cache to sync...'; sleep 8"),
@@ -170,7 +170,7 @@ STEPS = [
     },
     {
         "id": "restore-verify",
-        "title": "11 · 访问恢复(端到端)",
+        "title": "12 · 访问恢复(端到端)",
         "desc": "注册恢复后,再次用 JWT-SVID 完成零密钥云联邦 —— 换取 Entra 令牌成功,"
                 "整条链路恢复正常。",
         "cmd": f"{DC} exec -T federation-demo /federate.sh",
