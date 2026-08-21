@@ -182,6 +182,7 @@ services:
     volumes:
       - ./scripts/federate.sh:/federate.sh:ro
       - ./scripts/access-graph.sh:/access-graph.sh:ro
+      - ./scripts/fetch-jwt-svid.sh:/fetch-jwt-svid.sh:ro
       - spire-sockets:/tmp/spire-sockets
     networks: [spiffe-net]
 

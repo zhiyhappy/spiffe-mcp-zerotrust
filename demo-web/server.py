@@ -203,12 +203,12 @@ STEPS = [
                   "The Agent authenticates each container by its docker label: "
                   "app=openwebui → /agent, app=mcp-server → /mcp-server -- each gets "
                   "only its own, zero secrets, and never the other's certificate. "
-                  "(Remember the first command: after revocation in step 10, the same "
+                  "(Remember the first command: after revocation in step 11, the same "
                   "command is denied.)",
                   "两侧工作负载各自经 Workload API 向 SPIRE Agent 申请身份。Agent 通过各容器的 "
                   "docker 标签分别认证:app=openwebui → /agent,app=mcp-server → /mcp-server —— "
                   "各拿各的,全程零密钥,拿不到别人的证书。"
-                  "(记住第一条命令:第 10 步撤销注册后,同一条命令会被拒绝。)"),
+                  "(记住第一条命令:第 11 步撤销注册后,同一条命令会被拒绝。)"),
         "cmd": L(
             "echo '=== Agent side (federation-demo, app=openwebui) ==='; "
             + DC + " exec -T federation-demo "
@@ -264,8 +264,31 @@ STEPS = [
         "expect": {"contains": "Attack blocked", "label": L("Attack denied", "攻击被拒")},
     },
     {
+        "id": "svid-jwt",
+        "title": L("6 · Workload Obtains a JWT-SVID", "6 · 工作负载获取 JWT-SVID"),
+        "desc": L("The same registration also yields a JWT-SVID -- a portable, "
+                  "publicly-verifiable token form of the identity (the X.509-SVID above "
+                  "drives the mTLS data plane; this JWT-SVID drives cloud federation). "
+                  "The workload fetches it from the SPIRE Agent over the Workload API "
+                  "and we decode its claims: sub = the SPIFFE ID, aud = the federation "
+                  "audience, signed by SPIRE and short-lived. The next step publishes "
+                  "the JWKS that lets anyone verify it.",
+                  "同一条注册也能签发 JWT-SVID —— 身份的可移植、可公开验证的令牌形式"
+                  "(上面的 X.509-SVID 驱动 mTLS 数据面;这条 JWT-SVID 驱动云联邦)。"
+                  "工作负载经 Workload API 向 SPIRE Agent 获取它,并解码其声明:"
+                  "sub = SPIFFE ID,aud = 联邦受众,由 SPIRE 签名且为短期凭据。"
+                  "下一步将发布可供任何人验证它的 JWKS。"),
+        "cmd": L(f"{DC} exec -T -e UILANG=en federation-demo /fetch-jwt-svid.sh",
+                 f"{DC} exec -T -e UILANG=zh federation-demo /fetch-jwt-svid.sh"),
+        "nodes": ["spire-agent", "app"],
+        "edges": ["e-agent-app"],
+        "edge": "on",
+        "expect": {"contains": "spiffe://ethandemo.com/agent",
+                   "label": L("JWT-SVID issued (sub = /agent)", "已签发 JWT-SVID(sub = /agent)")},
+    },
+    {
         "id": "jwks",
-        "title": L("6 · Identity Publicly Verifiable (JWKS)", "6 · 身份公网可验证(JWKS)"),
+        "title": L("7 · Identity Publicly Verifiable (JWKS)", "7 · 身份公网可验证(JWKS)"),
         "desc": L("The OIDC Discovery Provider publishes SPIRE's JWKS and OIDC metadata "
                   "on the public internet via Caddy, so outsiders (e.g. Entra) can "
                   "verify JWT-SVIDs issued by SPIFFE.",
@@ -280,8 +303,8 @@ STEPS = [
     },
     {
         "id": "fed-legit",
-        "title": L("7 · Zero-Secret Cloud Federation (legit: read a cloud resource)",
-                   "7 · 零密钥云联邦(合法:读取云资源)"),
+        "title": L("8 · Zero-Secret Cloud Federation (legit: read a cloud resource)",
+                   "8 · 零密钥云联邦(合法:读取云资源)"),
         "desc": L("The Agent presents its JWT-SVID as an OIDC client assertion to "
                   "Microsoft Entra to obtain an access token -- using no client secret; "
                   "Entra verifies the assertion via the public JWKS. It then uses that "
@@ -303,7 +326,7 @@ STEPS = [
     },
     {
         "id": "fed-impostor",
-        "title": L("8 · Impersonated Federation (denied)", "8 · 冒充身份联邦(被拒)"),
+        "title": L("9 · Impersonated Federation (denied)", "9 · 冒充身份联邦(被拒)"),
         "desc": L("A container holding a valid but wrong SPIFFE ID (/mcp-server) "
                   "attempts federation. Entra rejects it because the federated-credential "
                   "subject doesn't match (AADSTS700213).",
@@ -318,7 +341,7 @@ STEPS = [
     },
     {
         "id": "revoke",
-        "title": L("9 · Revoke the SVID Registration", "9 · 撤销 SVID 注册"),
+        "title": L("10 · Revoke the SVID Registration", "10 · 撤销 SVID 注册"),
         "desc": L("Delete the /agent registration entry on the SPIRE Server. After "
                   "about one sync period (~5s) that workload can no longer obtain or "
                   "renew any SVID. Note: already-issued short-lived SVIDs stay valid "
@@ -344,7 +367,7 @@ STEPS = [
     },
     {
         "id": "revoke-verify",
-        "title": L("10 · After Revocation, No New Identity", "10 · 撤销后无法再获取身份"),
+        "title": L("11 · After Revocation, No New Identity", "11 · 撤销后无法再获取身份"),
         "desc": L("Re-run the SVID-fetch command from step 3. The registration is gone, "
                   "so the Agent immediately refuses to issue a new identity (rpc "
                   "PermissionDenied: no identity issued). That's the direct proof "
@@ -362,7 +385,7 @@ STEPS = [
     },
     {
         "id": "restore",
-        "title": L("11 · Restore the Registration", "11 · 恢复注册"),
+        "title": L("12 · Restore the Registration", "12 · 恢复注册"),
         "desc": L("Re-register the workload entry. After about one sync period the "
                   "Agent is re-authorized and can issue SVIDs again.",
                   "重新注册工作负载条目。约一个同步周期后,Agent 重新获得授权并可再次签发 SVID。"),
@@ -376,8 +399,8 @@ STEPS = [
     },
     {
         "id": "restore-verify",
-        "title": L("12 · Access Restored (end-to-end: read a cloud resource)",
-                   "12 · 访问恢复(端到端:读取云资源)"),
+        "title": L("13 · Access Restored (end-to-end: read a cloud resource)",
+                   "13 · 访问恢复(端到端:读取云资源)"),
         "desc": L("With registration restored, the workload -- using only its SPIFFE "
                   "identity (zero client secret) -- exchanges for a Microsoft Graph "
                   "access token at Entra and uses it to actually read an Azure cloud "
@@ -400,8 +423,8 @@ STEPS = [
     },
     {
         "id": "idira",
-        "title": L("13 · Smooth Evolution: Components CyberArk Idira Can Take Over",
-                   "13 · 平滑演进:CyberArk Idira 可接管的组件"),
+        "title": L("14 · Smooth Evolution: Components CyberArk Idira Can Take Over",
+                   "14 · 平滑演进:CyberArk Idira 可接管的组件"),
         "desc": L("This demo built an identity control plane with open-source SPIRE. It "
                   "can smoothly evolve into CyberArk Idira: highlighted in purple is "
                   "what Idira can take over -- the SPIRE Server / Agent and OIDC "
