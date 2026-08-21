@@ -12,7 +12,7 @@
 # (admin-consented). Without it, Graph returns 403 and this script says so.
 #
 # Env (see .env): ENTRA_TENANT_ID, ENTRA_CLIENT_ID.
-# UILANG=en|zh selects the human-readable output language (default en).
+# UILANG=en|zh|ko selects the human-readable output language (default en).
 set -euo pipefail
 
 TENANT_ID="${ENTRA_TENANT_ID:?set ENTRA_TENANT_ID in .env}"
@@ -22,8 +22,15 @@ AUDIENCE="api://AzureADTokenExchange"
 SCOPE="https://graph.microsoft.com/.default"
 UILANG="${UILANG:-en}"
 
-# say "<english>" "<chinese>" — print the line for the selected language.
-say() { if [ "${UILANG}" = "zh" ]; then printf '%s\n' "$2"; else printf '%s\n' "$1"; fi; }
+# say "<english>" "<chinese>" "<korean>" — print the line for the selected language.
+# The Korean arg is optional; lines identical across languages omit it.
+say() {
+  case "${UILANG}" in
+    zh) printf '%s\n' "$2" ;;
+    ko) printf '%s\n' "${3:-$1}" ;;
+    *)  printf '%s\n' "$1" ;;
+  esac
+}
 
 b64url_decode() {
   local s="$1" pad
@@ -33,7 +40,8 @@ b64url_decode() {
 json_get() { printf '%s' "$1" | sed -n "s/.*\"$2\":\"\([^\"]*\)\".*/\1/p" | head -n1; }
 
 say "== 1) Fetch a JWT-SVID from SPIRE (audience=${AUDIENCE}) ==" \
-    "== 1) 从 SPIRE 获取 JWT-SVID (audience=${AUDIENCE}) =="
+    "== 1) 从 SPIRE 获取 JWT-SVID (audience=${AUDIENCE}) ==" \
+    "== 1) SPIRE에서 JWT-SVID 획득 (audience=${AUDIENCE}) =="
 JWT_RAW="$(spire-agent api fetch jwt -audience "${AUDIENCE}" -socketPath "${SOCK}" 2>&1)" || {
   echo "ERROR: spire-agent could not fetch a JWT-SVID:" >&2
   printf '%s\n' "${JWT_RAW}" | head -n 3 >&2
@@ -46,11 +54,13 @@ if [[ -z "${JWT}" ]]; then
 fi
 SUB="$(b64url_decode "$(printf '%s' "$JWT" | cut -d. -f2)" | sed -n 's/.*"sub":"\([^"]*\)".*/\1/p')"
 say "   SVID obtained; sub=${SUB}" \
-    "   SVID 已获取; sub=${SUB}"
+    "   SVID 已获取; sub=${SUB}" \
+    "   SVID 획득됨; sub=${SUB}"
 echo
 
 say "== 2) Exchange the JWT-SVID for a Microsoft Graph token (no client secret; scope=${SCOPE}) ==" \
-    "== 2) 用 JWT-SVID 换取 Microsoft Graph 令牌 (无客户端密钥; scope=${SCOPE}) =="
+    "== 2) 用 JWT-SVID 换取 Microsoft Graph 令牌 (无客户端密钥; scope=${SCOPE}) ==" \
+    "== 2) JWT-SVID로 Microsoft Graph 토큰 교환 (클라이언트 시크릿 없음; scope=${SCOPE}) =="
 RESP="$(curl -sS -X POST "https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token" \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'grant_type=client_credentials' \
@@ -61,17 +71,19 @@ RESP="$(curl -sS -X POST "https://login.microsoftonline.com/${TENANT_ID}/oauth2/
 
 ACCESS_TOKEN="$(json_get "${RESP}" access_token)"
 if [[ -z "${ACCESS_TOKEN}" ]]; then
-  say "   REJECTED by Entra:" "   被 Entra 拒绝:"
+  say "   REJECTED by Entra:" "   被 Entra 拒绝:" "   Entra에 의해 거부됨:"
   echo "   $(json_get "${RESP}" error): $(json_get "${RESP}" error_description | cut -c1-160)"
   exit 1
 fi
 CLAIMS="$(b64url_decode "$(printf '%s' "$ACCESS_TOKEN" | cut -d. -f2)")"
 say "   Graph token obtained (zero secret). aud=$(printf '%s' "$CLAIMS" | sed -n 's/.*"aud":"\([^"]*\)".*/\1/p')" \
-    "   已获取 Graph 令牌 (零密钥)。aud=$(printf '%s' "$CLAIMS" | sed -n 's/.*"aud":"\([^"]*\)".*/\1/p')"
+    "   已获取 Graph 令牌 (零密钥)。aud=$(printf '%s' "$CLAIMS" | sed -n 's/.*"aud":"\([^"]*\)".*/\1/p')" \
+    "   Graph 토큰 획득됨 (제로 시크릿)。aud=$(printf '%s' "$CLAIMS" | sed -n 's/.*"aud":"\([^"]*\)".*/\1/p')"
 echo
 
 say "== 3) Call Microsoft Graph to read a cloud resource: GET /v1.0/organization ==" \
-    "== 3) 调用 Microsoft Graph 读取云资源: GET /v1.0/organization =="
+    "== 3) 调用 Microsoft Graph 读取云资源: GET /v1.0/organization ==" \
+    "== 3) Microsoft Graph 호출로 클라우드 리소스 읽기: GET /v1.0/organization =="
 ORG_RESP="$(curl -sS -w '\n%{http_code}' https://graph.microsoft.com/v1.0/organization \
   -H "Authorization: Bearer ${ACCESS_TOKEN}")"
 HTTP_CODE="$(printf '%s' "$ORG_RESP" | tail -n1)"
@@ -81,9 +93,11 @@ if [[ "${HTTP_CODE}" != "200" ]]; then
   echo "   HTTP ${HTTP_CODE} -- $(json_get "${ORG_BODY}" code): $(json_get "${ORG_BODY}" message | cut -c1-140)"
   echo
   say "== Token is valid, but Graph denied access. Grant the app the Microsoft Graph permission ==" \
-      "== 令牌有效,但 Graph 拒绝访问。请给该应用授予 Microsoft Graph 应用权限 =="
+      "== 令牌有效,但 Graph 拒绝访问。请给该应用授予 Microsoft Graph 应用权限 ==" \
+      "== 토큰은 유효하지만 Graph가 접근을 거부했습니다. 앱에 Microsoft Graph 권한을 부여하세요 =="
   say "   Organization.Read.All with admin consent, then retry this step in ~1 minute." \
-      "   Organization.Read.All 并完成管理员同意,约 1 分钟后重试本步。"
+      "   Organization.Read.All 并完成管理员同意,约 1 分钟后重试本步。" \
+      "   Organization.Read.All 및 관리자 동의 후 약 1분 뒤 이 단계를 다시 시도하세요."
   exit 1
 fi
 
@@ -91,13 +105,18 @@ ORG_NAME="$(json_get "${ORG_BODY}" displayName)"
 ORG_TID="$(json_get "${ORG_BODY}" id)"
 ORG_DOMAIN="$(printf '%s' "${ORG_BODY}" | grep -o '"name":"[^"]*"' | head -n1 | sed 's/.*:"\([^"]*\)"/\1/')"
 say "   HTTP 200 -- organization object read successfully:" \
-    "   HTTP 200 —— 成功读取组织对象:"
+    "   HTTP 200 —— 成功读取组织对象:" \
+    "   HTTP 200 -- 조직 객체를 성공적으로 읽었습니다:"
 say "     displayName : ${ORG_NAME}" \
-    "     组织名称 displayName : ${ORG_NAME}"
+    "     组织名称 displayName : ${ORG_NAME}" \
+    "     조직 이름 displayName : ${ORG_NAME}"
 say "     domain      : ${ORG_DOMAIN}" \
-    "     默认域名 domain      : ${ORG_DOMAIN}"
+    "     默认域名 domain      : ${ORG_DOMAIN}" \
+    "     기본 도메인 domain    : ${ORG_DOMAIN}"
 say "     tenantId    : ${ORG_TID}" \
-    "     租户 ID  tenantId    : ${ORG_TID}"
+    "     租户 ID  tenantId    : ${ORG_TID}" \
+    "     테넌트 ID tenantId   : ${ORG_TID}"
 echo
 say "== SUCCESS: used only a SPIFFE identity (zero local secret) to read a Microsoft Graph cloud resource. ==" \
-    "== SUCCESS: 仅凭 SPIFFE 身份(零本地密钥)读取到 Microsoft Graph 云资源。 =="
+    "== SUCCESS: 仅凭 SPIFFE 身份(零本地密钥)读取到 Microsoft Graph 云资源。 ==" \
+    "== SUCCESS: SPIFFE 신원만으로(로컬 시크릿 제로) Microsoft Graph 클라우드 리소스를 읽었습니다. =="

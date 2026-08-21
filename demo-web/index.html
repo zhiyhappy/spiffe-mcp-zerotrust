@@ -114,6 +114,7 @@
   <select class="langsel" id="lang" aria-label="language">
     <option value="en">English</option>
     <option value="zh">简体中文</option>
+    <option value="ko">한국어</option>
   </select>
 </header>
 
@@ -298,6 +299,41 @@ const UI = {
     elJwksPub:"JWKS(公网)",
     elDenied:"被拒",
   },
+  ko: {
+    docTitle:"SPIFFE / SPIRE 제로 트러스트 데모",
+    h1:"SPIFFE / SPIRE 제로 트러스트 데모",
+    warn:"⚠ 이 페이지는 NSG 소스 IP 허용 목록으로만 접근하세요(실제 명령을 실행합니다)",
+    legNormal:"정상 경로 / 강조",
+    legDenied:"거부 / 취소",
+    legRestored:"복원",
+    legIdira:"향후 CyberArk Idira가 인수 가능",
+    stepWord:"단계",
+    ready:"준비 완료",
+    introDesc:"「다음 ▶」을 클릭하여 시작하세요. 각 단계는 이 호스트에서 실제 명령을 실행하고 아래에 원본 출력을 표시합니다; 왼쪽 토폴로지에서 관련 구성 요소가 강조됩니다.",
+    introShort:"「다음 ▶」을 클릭하여 시작하세요.",
+    cmdPlaceholder:"# 명령이 여기에 표시됩니다",
+    next:"다음 ▶", done:"완료", prev:"◀ 이전", rerun:"↻ 다시 실행", reset:"⟲ 초기화",
+    outHead:"# 명령 출력",
+    running:"실행 중…",
+    okPrefix:"✓ 예상대로 · ",
+    warnPrefix:"⚠ 예상 출력이 보이지 않음 · 기대값 ",
+    noOutput:"(출력 없음)",
+    reqFailed:"요청 실패: ",
+    outEmpty:"「다음 ▶」을 클릭하여 이 단계를 실행하면 결과가 여기에 표시됩니다.",
+    containsFmt:s=>"포함 “"+s+"”",
+    nsServer:"신원 권한 · 등록=인가",
+    nsAgent:"워크로드 인증 · SDS",
+    nsOidc:"JWKS 게시",
+    nsCaddy:"공개 TLS 엣지",
+    nsApp:"AI Agent 측",
+    nsMcp:"도구 / 데이터 측",
+    nsEntra1:"워크로드 페더레이션",
+    nsEntra2:"(클라이언트 시크릿 제로)",
+    nsHacker:"사이드카 없음 · SVID 없음",
+    elAttest:"노드 인증 / 발급",
+    elJwksPub:"JWKS(공개)",
+    elDenied:"거부됨",
+  },
 };
 
 let STEPS = [], DOMAIN = "";
@@ -308,18 +344,21 @@ const $ = id => document.getElementById(id);
 const T = () => UI[LANG];
 const ckey = id => LANG + ":" + id;
 
+const LANGS = ["en", "zh", "ko"];
+const HTML_LANG = { en:"en", zh:"zh-CN", ko:"ko" };
+const normLang = l => LANGS.includes(l) ? l : "en";
+
 async function boot(){
-  const saved = localStorage.getItem("demo-lang");
-  LANG = (saved === "zh" || saved === "en") ? saved : "en";
+  LANG = normLang(localStorage.getItem("demo-lang"));
   $("lang").value = LANG;
   $("lang").onchange = () => setLang($("lang").value);
   await setLang(LANG);
 }
 
 async function setLang(lang){
-  LANG = (lang === "zh") ? "zh" : "en";
+  LANG = normLang(lang);
   localStorage.setItem("demo-lang", LANG);
-  document.documentElement.lang = (LANG === "zh") ? "zh-CN" : "en";
+  document.documentElement.lang = HTML_LANG[LANG];
   const r = await fetch("/api/steps?lang=" + LANG);
   const j = await r.json();
   STEPS = j.steps; DOMAIN = j.domain || "";
