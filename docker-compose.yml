@@ -121,7 +121,7 @@ services:
     depends_on: [open-webui, spire-agent]
     labels:
       - "app=openwebui"   # -> SPIFFE ID spiffe://ethandemo.com/agent
-    command: ["-c", "/etc/envoy/envoy.yaml", "--service-cluster", "envoy-client", "-l", "info"]
+    command: ["-c", "/etc/envoy/envoy.yaml", "--service-node", "envoy-client", "--service-cluster", "envoy-client", "-l", "info"]
     volumes:
       - ./envoy/client/envoy-client.yaml:/etc/envoy/envoy.yaml:ro
       - spire-sockets:/tmp/spire-sockets
@@ -150,7 +150,7 @@ services:
     depends_on: [mcp-server, spire-agent]
     labels:
       - "app=mcp-server"  # -> SPIFFE ID spiffe://ethandemo.com/mcp-server
-    command: ["-c", "/etc/envoy/envoy.yaml", "--service-cluster", "envoy-server", "-l", "info"]
+    command: ["-c", "/etc/envoy/envoy.yaml", "--service-node", "envoy-server", "--service-cluster", "envoy-server", "-l", "info"]
     volumes:
       - ./envoy/server/envoy-server.yaml:/etc/envoy/envoy.yaml:ro
       - spire-sockets:/tmp/spire-sockets
