@@ -115,14 +115,16 @@ STEPS = [
     },
     {
         "id": "fed-legit",
-        "title": "7 · 零密钥云联邦(合法)",
+        "title": "7 · 零密钥云联邦(合法:读取云资源)",
         "desc": "Agent 用 JWT-SVID 作为 OIDC client assertion 向 Microsoft Entra 换取访问令牌 —— "
-                "不使用任何客户端密钥。Entra 通过公网 JWKS 验证该断言。",
-        "cmd": f"{DC} exec -T federation-demo /federate.sh",
+                "不使用任何客户端密钥;Entra 通过公网 JWKS 验证该断言。随后用该令牌真正读取一个 "
+                "Azure 云资源:Microsoft Graph 的组织对象(GET /v1.0/organization),返回租户名称/域名。",
+        "cmd": f"{DC} exec -T federation-demo /access-graph.sh",
         "nodes": ["app", "entra"],
         "edges": ["e-app-entra"],
         "edge": "on",
-        "expect": {"contains": "Got an Entra access token", "label": "换取到 Entra 令牌(零密钥)"},
+        "expect": {"contains": "读取到 Microsoft Graph 云资源",
+                   "label": "换取令牌并读到 Graph 组织资源(零密钥)"},
     },
     {
         "id": "fed-impostor",
