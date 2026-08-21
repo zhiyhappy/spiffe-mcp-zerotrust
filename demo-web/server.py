@@ -47,7 +47,8 @@ STEPS = [
     {
         "id": "registration",
         "title": "1 · 组件注册(注册即授权)",
-        "desc": "在 SPIRE Server 登记每个工作负载的 SPIFFE ID ↔ docker 标签选择器。"
+        "desc": "在 SPIRE Server 为每个工作负载登记一条注册条目:docker 标签选择器 → SPIFFE ID"
+                "(选择器匹配到哪个容器,就给它颁发对应身份)。"
                 "这是整个系统唯一的授权来源:没有条目 = 没有身份。",
         "cmd": f"{DC} exec -T spire-server spire-server entry show",
         "nodes": ["spire-server", "spire-agent", "app", "mcp", "oidc"],
