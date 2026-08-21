@@ -1,4 +1,6 @@
 .env
+.env.*
+Demo info
 *.log
 __pycache__/
 *.pyc
