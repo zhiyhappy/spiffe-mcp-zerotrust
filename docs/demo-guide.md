@@ -8,6 +8,7 @@ and **Why it matters** (the business talking point).
 - **Environment:** Azure VM · public host `spiffe.ethandemo.com` · trust domain `ethandemo.com` · Docker Compose
 - **Architecture diagram:** [`architecture.png`](architecture.png)
 - **Latest acceptance run:** [`acceptance-report.md`](acceptance-report.md) — 8/8 pass
+- **中文版：** [`demo-guide.zh.md`](demo-guide.zh.md)
 
 ---
 
