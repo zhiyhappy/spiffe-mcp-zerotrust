@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPIFFE / SPIRE 零信任演示</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2530; --border:#30363d;
+    --ink:#e6edf3; --muted:#8b949e; --blue:#3b82f6; --green:#22c55e;
+    --red:#ef4444; --amber:#f59e0b; --node:#21262d; --nodeln:#3d4451;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+    "Microsoft YaHei",Helvetica,Arial,sans-serif;line-height:1.5}
+  header{padding:16px 24px;border-bottom:1px solid var(--border);
+    display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0}
+  header .dom{color:var(--muted);font-size:13px}
+  header .warn{margin-left:auto;color:var(--amber);font-size:12px}
+  .wrap{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;
+    padding:16px 24px;align-items:start}
+  @media(max-width:1100px){.wrap{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px}
+  .topo{padding:10px}
+  svg{width:100%;height:auto;display:block}
+  /* topology node + edge states */
+  .node rect{fill:var(--node);stroke:var(--nodeln);stroke-width:1.5;
+    transition:all .25s ease}
+  .node .t{fill:var(--ink);font-size:14px;font-weight:600}
+  .node .s{fill:var(--muted);font-size:11px}
+  .node.active rect{stroke:var(--blue);stroke-width:2.5;
+    filter:drop-shadow(0 0 6px rgba(59,130,246,.7))}
+  .node.bad rect{stroke:var(--red);stroke-width:2.5;
+    filter:drop-shadow(0 0 6px rgba(239,68,68,.7))}
+  .node.ok rect{stroke:var(--green);stroke-width:2.5;
+    filter:drop-shadow(0 0 6px rgba(34,197,94,.7))}
+  .edge{stroke:var(--nodeln);stroke-width:1.6;fill:none;opacity:.45;
+    transition:all .25s ease}
+  .edge.hidden{opacity:0}
+  .edge.active{stroke:var(--blue);stroke-width:3;opacity:1;
+    stroke-dasharray:7 5;animation:dash 1s linear infinite}
+  .edge.bad{stroke:var(--red);stroke-width:3;opacity:1;
+    stroke-dasharray:7 5;animation:dash 1s linear infinite}
+  .edge.ok{stroke:var(--green);stroke-width:3;opacity:1;
+    stroke-dasharray:7 5;animation:dash 1s linear infinite}
+  .elabel{fill:var(--muted);font-size:10.5px}
+  @keyframes dash{to{stroke-dashoffset:-24}}
+
+  .side{display:flex;flex-direction:column;gap:14px}
+  .step-head{display:flex;align-items:center;gap:10px;padding:14px 16px 0}
+  .badge{background:var(--panel2);border:1px solid var(--border);border-radius:20px;
+    padding:2px 10px;font-size:12px;color:var(--muted)}
+  .step h2{font-size:16px;margin:8px 16px 4px}
+  .step p{margin:0 16px 12px;color:var(--muted);font-size:13.5px}
+  .cmd{margin:0 16px;background:#0b0f14;border:1px solid var(--border);
+    border-radius:8px;padding:9px 11px;font-family:ui-monospace,SFMono-Regular,
+    Menlo,Consolas,monospace;font-size:12px;color:#a5d6ff;white-space:pre-wrap;
+    word-break:break-all}
+  .cmd .lbl{color:var(--muted);user-select:none}
+  .controls{display:flex;gap:8px;padding:14px 16px;flex-wrap:wrap;align-items:center}
+  button{font:inherit;font-size:13px;border-radius:8px;border:1px solid var(--border);
+    background:var(--panel2);color:var(--ink);padding:8px 14px;cursor:pointer}
+  button:hover:not(:disabled){border-color:var(--muted)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+  .progress{color:var(--muted);font-size:12px;margin-left:auto}
+  .out-wrap{padding:0 16px 16px}
+  .verdict{display:flex;align-items:center;gap:8px;font-size:13px;
+    margin:4px 0 8px;min-height:20px}
+  .verdict .dot{width:9px;height:9px;border-radius:50%}
+  .v-ok{color:var(--green)} .v-ok .dot{background:var(--green)}
+  .v-warn{color:var(--amber)} .v-warn .dot{background:var(--amber)}
+  .v-run{color:var(--blue)} .v-run .dot{background:var(--blue);
+    animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.3}}
+  pre.out{background:#0b0f14;border:1px solid var(--border);border-radius:8px;
+    padding:12px;margin:0;max-height:340px;overflow:auto;font-family:ui-monospace,
+    SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#d1d9e0;
+    white-space:pre-wrap;word-break:break-word}
+  pre.out:empty::before{content:"点击「下一步」运行本步骤,结果显示在这里。";color:var(--muted)}
+  .legend{display:flex;gap:16px;padding:6px 16px 12px;font-size:11.5px;color:var(--muted);
+    flex-wrap:wrap}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:20px;height:3px;border-radius:2px;display:inline-block}
+</style>
+</head>
+<body>
+<header>
+  <h1>SPIFFE / SPIRE 零信任演示</h1>
+  <span class="dom" id="dom"></span>
+  <span class="warn">⚠ 请仅通过 NSG 源地址白名单访问本页(可执行真实命令)</span>
+</header>
+
+<div class="wrap">
+  <!-- ===================== topology ===================== -->
+  <div class="card topo">
+    <svg viewBox="0 0 1000 640" role="img" aria-label="demo topology">
+      <!-- edges (drawn first, under nodes) -->
+      <path id="e-srv-agent"   class="edge" d="M135 94 L135 190"/>
+      <path id="e-agent-oidc"  class="edge" d="M135 254 L135 350"/>
+      <path id="e-oidc-caddy"  class="edge" d="M135 408 L135 460"/>
+      <path id="e-agent-app"   class="edge" d="M230 214 L400 152"/>
+      <path id="e-agent-mcp"   class="edge" d="M230 240 L400 360"/>
+      <path id="e-app-mcp"     class="edge" d="M520 206 L520 330"/>
+      <path id="e-app-entra"   class="edge" d="M640 158 L760 150"/>
+      <path id="e-caddy-entra" class="edge" d="M230 489 C 470 600, 700 540, 760 178"/>
+      <path id="e-hacker-mcp"  class="edge" d="M760 362 L640 374"/>
+      <path id="e-mcp-entra"   class="edge hidden" d="M640 352 L768 182"/>
+
+      <!-- edge labels -->
+      <text class="elabel" x="142" y="146">节点认证 / 签发</text>
+      <text class="elabel" x="142" y="306">JWKS</text>
+      <text class="elabel" x="250" y="178">SVID / SDS</text>
+      <text class="elabel" x="250" y="316">SVID / SDS</text>
+      <text class="elabel" x="528" y="272">mTLS</text>
+      <text class="elabel" x="648" y="128">JWT-SVID</text>
+      <text class="elabel" x="470" y="556">JWKS(公网)</text>
+      <text class="elabel" x="650" y="392">被拒</text>
+
+      <!-- nodes -->
+      <g class="node" id="n-spire-server" data-id="spire-server">
+        <rect x="40" y="30" width="190" height="64" rx="9"/>
+        <text class="t" x="135" y="58" text-anchor="middle">SPIRE Server</text>
+        <text class="s" x="135" y="78" text-anchor="middle">身份权威 · 注册即授权</text>
+      </g>
+      <g class="node" id="n-spire-agent" data-id="spire-agent">
+        <rect x="40" y="190" width="190" height="64" rx="9"/>
+        <text class="t" x="135" y="218" text-anchor="middle">SPIRE Agent</text>
+        <text class="s" x="135" y="238" text-anchor="middle">工作负载认证 · SDS</text>
+      </g>
+      <g class="node" id="n-oidc" data-id="oidc">
+        <rect x="40" y="350" width="190" height="58" rx="9"/>
+        <text class="t" x="135" y="376" text-anchor="middle">OIDC Discovery</text>
+        <text class="s" x="135" y="395" text-anchor="middle">发布 JWKS</text>
+      </g>
+      <g class="node" id="n-caddy" data-id="caddy">
+        <rect x="40" y="460" width="190" height="58" rx="9"/>
+        <text class="t" x="135" y="486" text-anchor="middle">Caddy</text>
+        <text class="s" x="135" y="505" text-anchor="middle">公网 TLS 边缘</text>
+      </g>
+      <g class="node" id="n-app" data-id="app">
+        <rect x="400" y="120" width="240" height="86" rx="9"/>
+        <text class="t" x="520" y="150" text-anchor="middle">Open WebUI + envoy-client</text>
+        <text class="s" x="520" y="172" text-anchor="middle">AI Agent 侧</text>
+        <text class="s" x="520" y="190" text-anchor="middle">spiffe://ethandemo.com/agent</text>
+      </g>
+      <g class="node" id="n-mcp" data-id="mcp">
+        <rect x="400" y="330" width="240" height="86" rx="9"/>
+        <text class="t" x="520" y="360" text-anchor="middle">MCP Server + envoy-server</text>
+        <text class="s" x="520" y="382" text-anchor="middle">工具/数据侧</text>
+        <text class="s" x="520" y="400" text-anchor="middle">spiffe://ethandemo.com/mcp-server</text>
+      </g>
+      <g class="node" id="n-entra" data-id="entra">
+        <rect x="760" y="110" width="200" height="80" rx="9"/>
+        <text class="t" x="860" y="140" text-anchor="middle">Microsoft Entra ID</text>
+        <text class="s" x="860" y="162" text-anchor="middle">工作负载联邦</text>
+        <text class="s" x="860" y="180" text-anchor="middle">(零客户端密钥)</text>
+      </g>
+      <g class="node" id="n-hacker" data-id="hacker">
+        <rect x="760" y="330" width="200" height="70" rx="9"/>
+        <text class="t" x="860" y="360" text-anchor="middle">Hacker</text>
+        <text class="s" x="860" y="381" text-anchor="middle">无 sidecar · 无 SVID</text>
+      </g>
+    </svg>
+    <div class="legend">
+      <span><i style="background:var(--blue)"></i>正常路径 / 高亮</span>
+      <span><i style="background:var(--red)"></i>被拒 / 撤销</span>
+      <span><i style="background:var(--green)"></i>恢复</span>
+    </div>
+  </div>
+
+  <!-- ===================== stepper ===================== -->
+  <div class="side">
+    <div class="card step">
+      <div class="step-head">
+        <span class="badge" id="stepno">步骤 — / —</span>
+        <span class="progress" id="stepid"></span>
+      </div>
+      <h2 id="title">准备就绪</h2>
+      <p id="desc">点击「下一步 ▶」开始演示。每一步都会在本机执行真实命令,
+        并在下方显示原始输出;左侧拓扑图会高亮当前涉及的组件。</p>
+      <div class="cmd" id="cmd"><span class="lbl"># 命令将在此显示</span></div>
+      <div class="controls">
+        <button class="primary" id="next">下一步 ▶</button>
+        <button id="prev" disabled>◀ 上一步</button>
+        <button id="rerun" disabled>↻ 重跑本步</button>
+        <button id="reset">⟲ 重置</button>
+        <span class="progress" id="prog"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="out-wrap">
+        <div class="verdict" id="verdict"></div>
+        <pre class="out" id="out"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let STEPS = [], DOMAIN = "";
+let cur = -1;                    // pointer into STEPS; -1 = intro
+const cache = {};               // step id -> last {output, verdict}
+const $ = id => document.getElementById(id);
+
+async function boot(){
+  const r = await fetch("/api/steps");
+  const j = await r.json();
+  STEPS = j.steps; DOMAIN = j.domain || "";
+  $("dom").textContent = DOMAIN ? "trust domain: ethandemo.com · " + DOMAIN : "";
+  updateNav();
+}
+
+function clearHighlight(){
+  // Removing the state classes reverts each edge to its base style; the
+  // impostor-only edge keeps its `hidden` class and stays invisible until a
+  // step adds a state class to it.
+  document.querySelectorAll(".node").forEach(n=>n.classList.remove("active","bad","ok"));
+  document.querySelectorAll(".edge").forEach(e=>e.classList.remove("active","bad","ok"));
+}
+
+function applyHighlight(step){
+  clearHighlight();
+  const cls = step.edge === "bad" ? "bad" : step.edge === "ok" ? "ok" : "active";
+  (step.nodes||[]).forEach(id=>{
+    const el = $("n-"+id); if(el) el.classList.add(cls);
+  });
+  (step.edges||[]).forEach(id=>{
+    const el = $(id); if(el) el.classList.add(cls);
+  });
+}
+
+function renderStep(i, {run=false}={}){
+  cur = i;
+  if(i < 0){
+    $("title").textContent = "准备就绪";
+    $("desc").textContent = "点击「下一步 ▶」开始演示。";
+    $("cmd").innerHTML = '<span class="lbl"># 命令将在此显示</span>';
+    $("out").textContent = ""; $("verdict").innerHTML = "";
+    clearHighlight(); updateNav(); return;
+  }
+  const s = STEPS[i];
+  $("stepno").textContent = `步骤 ${i+1} / ${STEPS.length}`;
+  $("stepid").textContent = s.id;
+  $("title").textContent = s.title;
+  $("desc").textContent = s.desc;
+  $("cmd").innerHTML = '<span class="lbl">$ </span>' + escapeHtml(s.cmd);
+  applyHighlight(s);
+  if(cache[s.id]){
+    $("out").textContent = cache[s.id].output;
+    showVerdict(cache[s.id].verdict);
+  } else {
+    $("out").textContent = "";
+    $("verdict").innerHTML = "";
+  }
+  updateNav();
+  if(run) execStep();
+}
+
+function verdictFor(s, output){
+  const exp = s.expect;
+  if(!exp || !exp.contains) return null;
+  const hay = exp.ci ? output.toLowerCase() : output;
+  const needle = exp.ci ? exp.contains.toLowerCase() : exp.contains;
+  return { ok: hay.includes(needle), label: exp.label || ("包含 “"+exp.contains+"”") };
+}
+
+function showVerdict(v){
+  const el = $("verdict");
+  if(!v){ el.innerHTML=""; return; }
+  if(v.running){ el.className="verdict v-run"; el.innerHTML='<span class="dot"></span>正在执行…'; return; }
+  if(v.ok){ el.className="verdict v-ok"; el.innerHTML='<span class="dot"></span>✓ 符合预期 · '+escapeHtml(v.label); }
+  else { el.className="verdict v-warn"; el.innerHTML='<span class="dot"></span>⚠ 未见预期输出 · 期望 '+escapeHtml(v.label); }
+}
+
+let busy = false;
+async function execStep(){
+  if(cur < 0 || busy) return;
+  const s = STEPS[cur];
+  busy = true; updateNav();
+  showVerdict({running:true});
+  $("out").textContent = "";
+  try{
+    const r = await fetch("/api/run", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({step: s.id})
+    });
+    const j = await r.json();
+    const output = (j.output || "").trimEnd() || "(无输出)";
+    const v = verdictFor(s, j.output || "");
+    $("out").textContent = output;
+    if(v) showVerdict(v); else $("verdict").innerHTML = "";
+    cache[s.id] = { output, verdict: v };
+  }catch(e){
+    $("out").textContent = "请求失败: " + e;
+    $("verdict").innerHTML = "";
+  }finally{
+    busy = false; updateNav();
+  }
+}
+
+function updateNav(){
+  $("prog").textContent = cur>=0 ? `${cur+1}/${STEPS.length}` : "";
+  $("next").disabled  = busy || cur >= STEPS.length-1;
+  $("prev").disabled  = busy || cur <= 0;
+  $("rerun").disabled = busy || cur < 0;
+  $("reset").disabled = busy;
+  $("next").textContent = (cur >= STEPS.length-1 && cur>=0) ? "已完成" : "下一步 ▶";
+}
+
+function escapeHtml(s){return (s||"").replace(/[&<>"]/g,c=>(
+  {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+$("next").onclick  = ()=>{ if(cur < STEPS.length-1) renderStep(cur+1, {run:true}); };
+$("prev").onclick  = ()=>{ if(cur > 0) renderStep(cur-1); };
+$("rerun").onclick = ()=> execStep();
+$("reset").onclick = ()=>{ for(const k in cache) delete cache[k]; renderStep(-1); };
+
+boot();
+</script>
+</body>
+</html>
