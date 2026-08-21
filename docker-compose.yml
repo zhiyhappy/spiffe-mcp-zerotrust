@@ -181,6 +181,7 @@ services:
     entrypoint: ["sleep", "infinity"]
     volumes:
       - ./scripts/federate.sh:/federate.sh:ro
+      - ./scripts/access-graph.sh:/access-graph.sh:ro
       - spire-sockets:/tmp/spire-sockets
     networks: [spiffe-net]
 

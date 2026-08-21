@@ -181,14 +181,17 @@ STEPS = [
     },
     {
         "id": "restore-verify",
-        "title": "12 · 访问恢复(端到端)",
-        "desc": "注册恢复后,再次用 JWT-SVID 完成零密钥云联邦 —— 换取 Entra 令牌成功,"
-                "整条链路恢复正常。",
-        "cmd": f"{DC} exec -T federation-demo /federate.sh",
+        "title": "12 · 访问恢复(端到端:读取云资源)",
+        "desc": "注册恢复后,工作负载仅凭 SPIFFE 身份(零客户端密钥)向 Entra 换取 "
+                "Microsoft Graph 访问令牌,并用该令牌真正读取一个 Azure 云资源 —— "
+                "Graph 的组织对象(GET /v1.0/organization),返回租户名称/域名。"
+                "身份 → 联邦 → 云资源,整条链路端到端打通。",
+        "cmd": f"{DC} exec -T federation-demo /access-graph.sh",
         "nodes": ["app", "entra"],
         "edges": ["e-app-entra"],
         "edge": "ok",
-        "expect": {"contains": "Got an Entra access token", "label": "访问已恢复"},
+        "expect": {"contains": "读取到 Microsoft Graph 云资源",
+                   "label": "已用令牌读到 Graph 组织资源"},
     },
     {
         "id": "idira",
