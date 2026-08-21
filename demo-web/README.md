@@ -5,8 +5,11 @@
 撤销注册后立即失效 → 恢复 → 标注未来可平滑演进到 CyberArk Idira 的组件。
 
 - 纯 HTTP、无外部依赖(仅 Python 标准库),默认监听 `0.0.0.0:8080`。
-- 浏览器只发送「步骤 id」,命令由后端从固定白名单(`server.py` 的 `STEPS`)执行。
+- 浏览器只发送「步骤 id」+ 语言,命令由后端从固定白名单(`server.py` 的 `STEPS`)执行。
 - 每条命令的工作目录是仓库根目录,`docker compose` 会自动读取 `./.env`。
+- 多语言:右上角可切换 **English / 简体中文**,默认 English(记忆在浏览器 localStorage)。
+  界面文案、步骤标题/说明、以及第 7/12 步(`access-graph.sh` 走 `UILANG`)与第 13 步的
+  说明性输出都会随语言切换;真实工具输出(docker、curl、SPIRE 等)保持原样。
 
 ## 运行(在 VM 的仓库根目录)
 

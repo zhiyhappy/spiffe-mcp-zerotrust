@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SPIFFE / SPIRE 零信任演示</title>
+<title data-i18n="docTitle">SPIFFE / SPIRE Zero-Trust Demo</title>
 <style>
   :root{
     --bg:#0d1117; --panel:#161b22; --panel2:#1c2530; --border:#30363d;
@@ -22,6 +22,9 @@
   header h1{font-size:18px;margin:0}
   header .dom{color:var(--muted);font-size:13px}
   header .warn{margin-left:auto;color:var(--amber);font-size:12px}
+  header .langsel{align-self:center;background:var(--panel2);color:var(--ink);
+    border:1px solid var(--border);border-radius:8px;padding:5px 8px;font:inherit;
+    font-size:13px;cursor:pointer}
 
   .wrap{flex:1 1 auto;min-height:0;display:flex;gap:16px;padding:16px 24px}
   @media(max-width:1000px){.wrap{flex-direction:column;overflow:auto}}
@@ -100,14 +103,18 @@
     border-radius:8px;margin:0 16px 16px;padding:14px;overflow:auto;
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;
     color:#d1d9e0;white-space:pre-wrap;word-break:break-word}
-  pre.out:empty::before{content:"点击「下一步 ▶」运行本步骤,结果显示在这里。";color:var(--muted)}
+  pre.out:empty::before{content:attr(data-empty);color:var(--muted)}
 </style>
 </head>
 <body>
 <header>
-  <h1>SPIFFE / SPIRE 零信任演示</h1>
+  <h1 data-i18n="h1">SPIFFE / SPIRE Zero-Trust Demo</h1>
   <span class="dom" id="dom"></span>
-  <span class="warn">⚠ 请仅通过 NSG 源地址白名单访问本页(可执行真实命令)</span>
+  <span class="warn" data-i18n="warn">⚠ Only reach this page through your NSG source-IP allowlist (it runs real commands)</span>
+  <select class="langsel" id="lang" aria-label="language">
+    <option value="en">English</option>
+    <option value="zh">简体中文</option>
+  </select>
 </header>
 
 <div class="wrap">
@@ -128,65 +135,65 @@
       <path id="e-mcp-entra"   class="edge hidden" d="M652 356 L766 186"/>
 
       <!-- edge labels -->
-      <text class="elabel" x="144" y="152">节点认证 / 签发</text>
+      <text class="elabel" x="144" y="152" data-i18n="elAttest">Node attest / issue</text>
       <text class="elabel" x="144" y="314">JWKS</text>
       <text class="elabel" x="250" y="182">SVID / SDS</text>
       <text class="elabel" x="250" y="324">SVID / SDS</text>
       <text class="elabel" x="530" y="280">mTLS</text>
       <text class="elabel" x="656" y="128">JWT-SVID</text>
-      <text class="elabel" x="470" y="560">JWKS(公网)</text>
-      <text class="elabel" x="660" y="398">被拒</text>
+      <text class="elabel" x="470" y="560" data-i18n="elJwksPub">JWKS (public)</text>
+      <text class="elabel" x="660" y="398" data-i18n="elDenied">Denied</text>
 
       <!-- nodes -->
       <g class="node" id="n-spire-server" data-id="spire-server">
         <rect x="30" y="34" width="210" height="66" rx="9"/>
         <text class="t" x="135" y="64" text-anchor="middle">SPIRE Server</text>
-        <text class="s" x="135" y="86" text-anchor="middle">身份权威 · 注册即授权</text>
+        <text class="s" x="135" y="86" text-anchor="middle" data-i18n="nsServer">Identity authority · reg = authz</text>
       </g>
       <g class="node" id="n-spire-agent" data-id="spire-agent">
         <rect x="30" y="196" width="210" height="66" rx="9"/>
         <text class="t" x="135" y="226" text-anchor="middle">SPIRE Agent</text>
-        <text class="s" x="135" y="248" text-anchor="middle">工作负载认证 · SDS</text>
+        <text class="s" x="135" y="248" text-anchor="middle" data-i18n="nsAgent">Workload attestation · SDS</text>
       </g>
       <g class="node" id="n-oidc" data-id="oidc">
         <rect x="30" y="356" width="210" height="60" rx="9"/>
         <text class="t" x="135" y="384" text-anchor="middle">OIDC Discovery</text>
-        <text class="s" x="135" y="404" text-anchor="middle">发布 JWKS</text>
+        <text class="s" x="135" y="404" text-anchor="middle" data-i18n="nsOidc">Publishes JWKS</text>
       </g>
       <g class="node" id="n-caddy" data-id="caddy">
         <rect x="30" y="468" width="210" height="60" rx="9"/>
         <text class="t" x="135" y="496" text-anchor="middle">Caddy</text>
-        <text class="s" x="135" y="516" text-anchor="middle">公网 TLS 边缘</text>
+        <text class="s" x="135" y="516" text-anchor="middle" data-i18n="nsCaddy">Public TLS edge</text>
       </g>
       <g class="node" id="n-app" data-id="app">
         <rect x="388" y="120" width="264" height="94" rx="9"/>
         <text class="t" x="520" y="152" text-anchor="middle">Open WebUI + envoy-client</text>
-        <text class="s" x="520" y="176" text-anchor="middle">AI Agent 侧</text>
+        <text class="s" x="520" y="176" text-anchor="middle" data-i18n="nsApp">AI Agent side</text>
         <text class="id" x="520" y="196" text-anchor="middle">spiffe://ethandemo.com/agent</text>
       </g>
       <g class="node" id="n-mcp" data-id="mcp">
         <rect x="388" y="334" width="264" height="94" rx="9"/>
         <text class="t" x="520" y="366" text-anchor="middle">MCP Server + envoy-server</text>
-        <text class="s" x="520" y="390" text-anchor="middle">工具 / 数据侧</text>
+        <text class="s" x="520" y="390" text-anchor="middle" data-i18n="nsMcp">Tool / data side</text>
         <text class="id" x="520" y="410" text-anchor="middle">spiffe://ethandemo.com/mcp-server</text>
       </g>
       <g class="node" id="n-entra" data-id="entra">
         <rect x="758" y="110" width="212" height="84" rx="9"/>
         <text class="t" x="864" y="142" text-anchor="middle">Microsoft Entra ID</text>
-        <text class="s" x="864" y="166" text-anchor="middle">工作负载联邦</text>
-        <text class="s" x="864" y="184" text-anchor="middle">(零客户端密钥)</text>
+        <text class="s" x="864" y="166" text-anchor="middle" data-i18n="nsEntra1">Workload federation</text>
+        <text class="s" x="864" y="184" text-anchor="middle" data-i18n="nsEntra2">(zero client secret)</text>
       </g>
       <g class="node" id="n-hacker" data-id="hacker">
         <rect x="758" y="334" width="212" height="72" rx="9"/>
         <text class="t" x="864" y="366" text-anchor="middle">Hacker</text>
-        <text class="s" x="864" y="388" text-anchor="middle">无 sidecar · 无 SVID</text>
+        <text class="s" x="864" y="388" text-anchor="middle" data-i18n="nsHacker">No sidecar · no SVID</text>
       </g>
     </svg>
     <div class="legend">
-      <span><i style="background:var(--blue)"></i>正常路径 / 高亮</span>
-      <span><i style="background:var(--red)"></i>被拒 / 撤销</span>
-      <span><i style="background:var(--green)"></i>恢复</span>
-      <span><i style="background:var(--violet)"></i>未来可由 CyberArk Idira 接管</span>
+      <span><i style="background:var(--blue)"></i><span data-i18n="legNormal">Normal path / highlight</span></span>
+      <span><i style="background:var(--red)"></i><span data-i18n="legDenied">Denied / revoked</span></span>
+      <span><i style="background:var(--green)"></i><span data-i18n="legRestored">Restored</span></span>
+      <span><i style="background:var(--violet)"></i><span data-i18n="legIdira">Future: taken over by CyberArk Idira</span></span>
     </div>
   </div>
 
@@ -194,24 +201,25 @@
   <div class="right">
     <div class="card step">
       <div class="step-head">
-        <span class="badge" id="stepno">步骤 — / —</span>
+        <span class="badge" id="stepno">Step — / —</span>
         <span class="sid" id="stepid"></span>
       </div>
-      <h2 id="title">准备就绪</h2>
-      <p id="desc">点击「下一步 ▶」开始演示。每一步都会在本机执行真实命令,
-        并在下方显示原始输出;左侧拓扑图会高亮当前涉及的组件。</p>
-      <div class="cmd" id="cmd"><span class="lbl"># 命令将在此显示</span></div>
+      <h2 id="title">Ready</h2>
+      <p id="desc">Click “Next ▶” to start. Each step runs a real command on this host
+        and shows the raw output below; the topology on the left highlights the
+        components involved.</p>
+      <div class="cmd" id="cmd"><span class="lbl"># the command will appear here</span></div>
       <div class="controls">
-        <button class="primary" id="next">下一步 ▶</button>
-        <button id="prev" disabled>◀ 上一步</button>
-        <button id="rerun" disabled>↻ 重跑本步</button>
-        <button id="reset">⟲ 重置</button>
+        <button class="primary" id="next">Next ▶</button>
+        <button id="prev" data-i18n="prev" disabled>◀ Prev</button>
+        <button id="rerun" data-i18n="rerun" disabled>↻ Re-run</button>
+        <button id="reset" data-i18n="reset">⟲ Reset</button>
         <span class="prog" id="prog"></span>
       </div>
     </div>
 
     <div class="card outcard">
-      <div class="out-head"><span class="lbl"># 命令输出</span></div>
+      <div class="out-head"><span class="lbl" data-i18n="outHead"># command output</span></div>
       <div class="verdict" id="verdict"></div>
       <pre class="out" id="out"></pre>
     </div>
@@ -219,17 +227,115 @@
 </div>
 
 <script>
+const UI = {
+  en: {
+    docTitle:"SPIFFE / SPIRE Zero-Trust Demo",
+    h1:"SPIFFE / SPIRE Zero-Trust Demo",
+    warn:"⚠ Only reach this page through your NSG source-IP allowlist (it runs real commands)",
+    legNormal:"Normal path / highlight",
+    legDenied:"Denied / revoked",
+    legRestored:"Restored",
+    legIdira:"Future: taken over by CyberArk Idira",
+    stepWord:"Step",
+    ready:"Ready",
+    introDesc:"Click “Next ▶” to start. Each step runs a real command on this host and shows the raw output below; the topology on the left highlights the components involved.",
+    introShort:"Click “Next ▶” to start.",
+    cmdPlaceholder:"# the command will appear here",
+    next:"Next ▶", done:"Done", prev:"◀ Prev", rerun:"↻ Re-run", reset:"⟲ Reset",
+    outHead:"# command output",
+    running:"Running…",
+    okPrefix:"✓ As expected · ",
+    warnPrefix:"⚠ Expected output not seen · expected ",
+    noOutput:"(no output)",
+    reqFailed:"Request failed: ",
+    outEmpty:"Click “Next ▶” to run this step; the result appears here.",
+    containsFmt:s=>"contains “"+s+"”",
+    nsServer:"Identity authority · reg = authz",
+    nsAgent:"Workload attestation · SDS",
+    nsOidc:"Publishes JWKS",
+    nsCaddy:"Public TLS edge",
+    nsApp:"AI Agent side",
+    nsMcp:"Tool / data side",
+    nsEntra1:"Workload federation",
+    nsEntra2:"(zero client secret)",
+    nsHacker:"No sidecar · no SVID",
+    elAttest:"Node attest / issue",
+    elJwksPub:"JWKS (public)",
+    elDenied:"Denied",
+  },
+  zh: {
+    docTitle:"SPIFFE / SPIRE 零信任演示",
+    h1:"SPIFFE / SPIRE 零信任演示",
+    warn:"⚠ 请仅通过 NSG 源地址白名单访问本页(可执行真实命令)",
+    legNormal:"正常路径 / 高亮",
+    legDenied:"被拒 / 撤销",
+    legRestored:"恢复",
+    legIdira:"未来可由 CyberArk Idira 接管",
+    stepWord:"步骤",
+    ready:"准备就绪",
+    introDesc:"点击「下一步 ▶」开始演示。每一步都会在本机执行真实命令,并在下方显示原始输出;左侧拓扑图会高亮当前涉及的组件。",
+    introShort:"点击「下一步 ▶」开始演示。",
+    cmdPlaceholder:"# 命令将在此显示",
+    next:"下一步 ▶", done:"已完成", prev:"◀ 上一步", rerun:"↻ 重跑本步", reset:"⟲ 重置",
+    outHead:"# 命令输出",
+    running:"正在执行…",
+    okPrefix:"✓ 符合预期 · ",
+    warnPrefix:"⚠ 未见预期输出 · 期望 ",
+    noOutput:"(无输出)",
+    reqFailed:"请求失败: ",
+    outEmpty:"点击「下一步 ▶」运行本步骤,结果显示在这里。",
+    containsFmt:s=>"包含 “"+s+"”",
+    nsServer:"身份权威 · 注册即授权",
+    nsAgent:"工作负载认证 · SDS",
+    nsOidc:"发布 JWKS",
+    nsCaddy:"公网 TLS 边缘",
+    nsApp:"AI Agent 侧",
+    nsMcp:"工具 / 数据侧",
+    nsEntra1:"工作负载联邦",
+    nsEntra2:"(零客户端密钥)",
+    nsHacker:"无 sidecar · 无 SVID",
+    elAttest:"节点认证 / 签发",
+    elJwksPub:"JWKS(公网)",
+    elDenied:"被拒",
+  },
+};
+
 let STEPS = [], DOMAIN = "";
+let LANG = "en";
 let cur = -1;                    // pointer into STEPS; -1 = intro
-const cache = {};               // step id -> last {output, verdict}
+const cache = {};               // "lang:stepid" -> last {output, verdict}
 const $ = id => document.getElementById(id);
+const T = () => UI[LANG];
+const ckey = id => LANG + ":" + id;
 
 async function boot(){
-  const r = await fetch("/api/steps");
+  const saved = localStorage.getItem("demo-lang");
+  LANG = (saved === "zh" || saved === "en") ? saved : "en";
+  $("lang").value = LANG;
+  $("lang").onchange = () => setLang($("lang").value);
+  await setLang(LANG);
+}
+
+async function setLang(lang){
+  LANG = (lang === "zh") ? "zh" : "en";
+  localStorage.setItem("demo-lang", LANG);
+  document.documentElement.lang = (LANG === "zh") ? "zh-CN" : "en";
+  const r = await fetch("/api/steps?lang=" + LANG);
   const j = await r.json();
   STEPS = j.steps; DOMAIN = j.domain || "";
+  applyI18n();
+  renderStep(cur);   // refresh step-dependent text (and intro) for the new language
+}
+
+function applyI18n(){
+  const t = T();
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const v = t[el.dataset.i18n];
+    if(v != null) el.textContent = v;
+  });
+  document.title = t.docTitle;
   $("dom").textContent = DOMAIN ? "trust domain: ethandemo.com · " + DOMAIN : "";
-  updateNav();
+  $("out").setAttribute("data-empty", t.outEmpty);
 }
 
 function clearHighlight(){
@@ -250,23 +356,27 @@ function applyHighlight(step){
 
 function renderStep(i, {run=false}={}){
   cur = i;
+  const t = T();
   if(i < 0){
-    $("title").textContent = "准备就绪";
-    $("desc").textContent = "点击「下一步 ▶」开始演示。";
-    $("cmd").innerHTML = '<span class="lbl"># 命令将在此显示</span>';
+    $("stepno").textContent = t.stepWord + " — / —";
+    $("stepid").textContent = "";
+    $("title").textContent = t.ready;
+    $("desc").textContent = t.introShort;
+    $("cmd").innerHTML = '<span class="lbl">' + escapeHtml(t.cmdPlaceholder) + '</span>';
     $("out").textContent = ""; $("verdict").innerHTML = "";
     clearHighlight(); updateNav(); return;
   }
   const s = STEPS[i];
-  $("stepno").textContent = `步骤 ${i+1} / ${STEPS.length}`;
+  $("stepno").textContent = `${t.stepWord} ${i+1} / ${STEPS.length}`;
   $("stepid").textContent = s.id;
   $("title").textContent = s.title;
   $("desc").textContent = s.desc;
   $("cmd").innerHTML = '<span class="lbl">$ </span>' + escapeHtml(s.cmd);
   applyHighlight(s);
-  if(cache[s.id]){
-    $("out").textContent = cache[s.id].output;
-    showVerdict(cache[s.id].verdict);
+  const c = cache[ckey(s.id)];
+  if(c){
+    $("out").textContent = c.output;
+    showVerdict(c.verdict);
   } else {
     $("out").textContent = "";
     $("verdict").innerHTML = "";
@@ -282,15 +392,16 @@ function verdictFor(s, output){
   // contains may be a single string or an array (all must be present).
   const needles = Array.isArray(exp.contains) ? exp.contains : [exp.contains];
   const ok = needles.every(n => hay.includes(exp.ci ? n.toLowerCase() : n));
-  return { ok: ok, label: exp.label || ("包含 “"+needles.join(" + ")+"”") };
+  return { ok: ok, label: exp.label || T().containsFmt(needles.join(" + ")) };
 }
 
 function showVerdict(v){
   const el = $("verdict");
+  const t = T();
   if(!v){ el.innerHTML=""; return; }
-  if(v.running){ el.className="verdict v-run"; el.innerHTML='<span class="dot"></span>正在执行…'; return; }
-  if(v.ok){ el.className="verdict v-ok"; el.innerHTML='<span class="dot"></span>✓ 符合预期 · '+escapeHtml(v.label); }
-  else { el.className="verdict v-warn"; el.innerHTML='<span class="dot"></span>⚠ 未见预期输出 · 期望 '+escapeHtml(v.label); }
+  if(v.running){ el.className="verdict v-run"; el.innerHTML='<span class="dot"></span>'+escapeHtml(t.running); return; }
+  if(v.ok){ el.className="verdict v-ok"; el.innerHTML='<span class="dot"></span>'+escapeHtml(t.okPrefix)+escapeHtml(v.label); }
+  else { el.className="verdict v-warn"; el.innerHTML='<span class="dot"></span>'+escapeHtml(t.warnPrefix)+escapeHtml(v.label); }
 }
 
 let busy = false;
@@ -303,16 +414,16 @@ async function execStep(){
   try{
     const r = await fetch("/api/run", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({step: s.id})
+      body: JSON.stringify({step: s.id, lang: LANG})
     });
     const j = await r.json();
-    const output = (j.output || "").trimEnd() || "(无输出)";
+    const output = (j.output || "").trimEnd() || T().noOutput;
     const v = verdictFor(s, j.output || "");
     $("out").textContent = output;
     if(v) showVerdict(v); else $("verdict").innerHTML = "";
-    cache[s.id] = { output, verdict: v };
+    cache[ckey(s.id)] = { output, verdict: v };
   }catch(e){
-    $("out").textContent = "请求失败: " + e;
+    $("out").textContent = T().reqFailed + e;
     $("verdict").innerHTML = "";
   }finally{
     busy = false; updateNav();
@@ -320,12 +431,13 @@ async function execStep(){
 }
 
 function updateNav(){
+  const t = T();
   $("prog").textContent = cur>=0 ? `${cur+1}/${STEPS.length}` : "";
   $("next").disabled  = busy || cur >= STEPS.length-1;
   $("prev").disabled  = busy || cur <= 0;
   $("rerun").disabled = busy || cur < 0;
   $("reset").disabled = busy;
-  $("next").textContent = (cur >= STEPS.length-1 && cur>=0) ? "已完成" : "下一步 ▶";
+  $("next").textContent = (cur >= STEPS.length-1 && cur>=0) ? t.done : t.next;
 }
 
 function escapeHtml(s){return (s||"").replace(/[&<>"]/g,c=>(
