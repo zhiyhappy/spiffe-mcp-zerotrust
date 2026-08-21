@@ -113,6 +113,15 @@ handling — the mesh did it all.
 **without changing application code** and without managing certificates by hand. Certs are
 minted on demand and expire hourly, so a leaked cert is worthless within the hour.
 
+> **Tip — call a real tool, not just `initialize`.** [`scripts/mcp-call.sh`](../scripts/mcp-call.sh)
+> runs the full MCP handshake (initialize → session id → `notifications/initialized` → `tools/*`)
+> over the exact same mesh path, so you can show live data instead of a bare protocol reply:
+> ```bash
+> scripts/mcp-call.sh                          # list the tools the MCP server exposes
+> scripts/mcp-call.sh list_employees           # -> Ada Lovelace, Alan Turing, Grace Hopper
+> scripts/mcp-call.sh find_employees Platform  # -> just the Platform team
+> ```
+
 ---
 
 ## Step 3 — An unregistered "hacker" is rejected three different ways
@@ -258,6 +267,60 @@ and its cloud token requests fail. After re-registering, everything works again 
 **Why it matters** — **One control plane governs both network and cloud access.** Off-boarding
 a workload — or containing a breach — is a single revocation, and it propagates everywhere
 that identity was trusted. No hunting down scattered API keys across services and clouds.
+
+---
+
+## Optional — Demo in the browser (Open WebUI GUI)
+
+The steps above are the technical core (run in a terminal). For a business audience you can
+open the actual product UI and show two things: **single sign-on** and the **MCP tool backend**
+reachable only through the mesh. (This lab deliberately ships **no chat model**, so we don't
+demo an LLM conversation — just SSO + the tool path.)
+
+### G1 — Sign in with corporate identity (SSO)
+
+1. Browse to **`https://spiffe.ethandemo.com`**.
+2. Click **"Continue with Microsoft"**.
+3. Complete the Microsoft Entra login (e.g. `se2@ethanzhi.onmicrosoft.com`).
+4. You land in Open WebUI, signed in — **no local username/password was ever created**.
+
+**Under the hood** — Open WebUI uses its native `microsoft` OIDC provider. The browser is
+redirected to Entra, comes back to `…/oauth/microsoft/callback`, and Open WebUI exchanges the
+code for tokens and provisions the user on the fly (`ENABLE_OAUTH_SIGNUP=true`,
+`OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true`). Caddy terminates public TLS in front of it.
+
+**Why it matters** — The app itself stores **no passwords**. Access is governed by the
+corporate IdP: joiners/leavers, MFA, and conditional access are all handled centrally in Entra.
+
+> **Gotcha (already fixed here).** Cloud-only Entra accounts have no mailbox, so Microsoft's
+> `userinfo` omits the `email` claim and returns only `preferred_username`. Open WebUI requires
+> an email and otherwise fails the callback with a misleading *"The email or password provided
+> is incorrect."* The fix is one env var — `OAUTH_EMAIL_CLAIM=preferred_username` — set on the
+> `open-webui` service. Also register **both** redirect URIs on the Entra app:
+> `…/oauth/microsoft/callback` (native provider) and `…/oauth/oidc/callback`.
+
+### G2 — Show the tool backend that only the mesh can reach
+
+The employee-directory tools the agent would call live in the MCP server, which is bound to
+`127.0.0.1` behind its mTLS sidecar — unreachable from the browser or the public internet.
+Prove the *authorized* path returns data while narrating that nothing outside the mesh can:
+
+```bash
+scripts/mcp-call.sh list_employees           # data comes back over mTLS
+scripts/mcp-call.sh find_employees Platform  # filtered query, same secured path
+```
+
+Contrast with **Step 3** (the `hacker` container gets `Broken pipe` / `Could not connect`):
+same network, no identity, no access.
+
+**Why it matters** — SSO proves *who the human is*; SPIFFE proves *what the workload is*. The
+GUI login and the tool call are two halves of the same zero-trust story — human identity at the
+edge, workload identity on the wire — with **no shared secret** on either side.
+
+> **Operator note.** Recreating the `open-webui` container (e.g. after an env change) gives it a
+> new network namespace, which orphans its `envoy-client` sidecar. Re-attach it with
+> `docker compose up -d --force-recreate envoy-client`, or the mesh path (Step 2 / G2) returns
+> `Connection refused` on `localhost:10000`.
 
 ---
 

@@ -106,6 +106,15 @@ serverInfo: {"name":"spiffe-demo-mcp","version":"3.4.7"}   ->  mTLS path OK
 **业务价值** —— 无需改动应用代码、无需手工管理证书，即可获得加密且双向认证的服务间流量。
 证书按需签发、每小时过期，因此一张泄露的证书一小时内就作废。
 
+> **小贴士 —— 调用真实工具，而不只是 `initialize`。** [`scripts/mcp-call.sh`](../scripts/mcp-call.sh)
+> 会走完整的 MCP 握手（initialize → 会话 id → `notifications/initialized` → `tools/*`），
+> 且走的是**完全相同的网格路径**,因此可以展示真实数据而非仅仅一个协议应答：
+> ```bash
+> scripts/mcp-call.sh                          # 列出 MCP server 暴露的工具
+> scripts/mcp-call.sh list_employees           # -> Ada Lovelace、Alan Turing、Grace Hopper
+> scripts/mcp-call.sh find_employees Platform  # -> 仅 Platform 团队
+> ```
+
 ---
 
 ## 第 3 步 —— 未注册的“hacker”被以三种方式拒绝
@@ -244,6 +253,56 @@ docker compose exec spire-server /opt/spire/scripts/register-entries.sh
 **业务价值** —— **一个控制平面同时治理网络与云访问**。下线一个工作负载 —— 或遏制一次入侵
 —— 只需一次吊销，就会传播到该身份被信任的所有地方。无需在各服务、各云之间四处搜罗散落的
 API key。
+
+---
+
+## 可选 —— 在浏览器里演示（Open WebUI GUI）
+
+上面的步骤是技术内核（在终端里跑）。面向业务受众时,可以打开真实的产品界面,展示两件事:
+**单点登录（SSO）** 与 **只能经网格触达的 MCP 工具后端**。(本 lab 有意**不配聊天模型**,
+所以我们不演示 LLM 对话 —— 只演 SSO + 工具路径。)
+
+### G1 —— 用企业身份登录（SSO）
+
+1. 浏览器打开 **`https://spiffe.ethandemo.com`**。
+2. 点击 **"Continue with Microsoft"**。
+3. 完成 Microsoft Entra 登录（例如 `se2@ethanzhi.onmicrosoft.com`）。
+4. 你会登入 Open WebUI —— **从未创建过任何本地用户名/密码**。
+
+**背后原理** —— Open WebUI 使用其原生 `microsoft` OIDC provider。浏览器被重定向到 Entra,
+再回到 `…/oauth/microsoft/callback`,Open WebUI 用授权码换取 token 并即时开通该用户
+（`ENABLE_OAUTH_SIGNUP=true`、`OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true`）。Caddy 在前端终结公网 TLS。
+
+**业务价值** —— 应用本身**不存储任何口令**。访问由企业 IdP 治理:入职/离职、MFA、条件访问
+全部在 Entra 集中管理。
+
+> **坑（这里已修复）。** 纯云端 Entra 账号没有邮箱,所以微软的 `userinfo` 不返回 `email`
+> claim,只返回 `preferred_username`。Open WebUI 强制要邮箱,拿不到就用一句极具误导性的
+> *"The email or password provided is incorrect."* 让回调失败。修复只需一个环境变量 ——
+> 在 `open-webui` 服务上设 `OAUTH_EMAIL_CLAIM=preferred_username`。另外在 Entra 应用上要
+> **同时**注册两个重定向 URI:`…/oauth/microsoft/callback`（原生 provider）与
+> `…/oauth/oidc/callback`。
+
+### G2 —— 展示只有网格才能触达的工具后端
+
+Agent 会调用的「员工目录」工具位于 MCP server 中,它绑定在 mTLS sidecar 后的 `127.0.0.1`,
+浏览器和公网都无法触达。演示**被授权**的路径能返回数据,同时讲解网格之外的任何人都不行:
+
+```bash
+scripts/mcp-call.sh list_employees           # 数据经 mTLS 返回
+scripts/mcp-call.sh find_employees Platform  # 过滤查询,同一条受保护路径
+```
+
+与**第 3 步**对比（`hacker` 容器得到 `Broken pipe` / `Could not connect`）:
+同一网络、无身份、无访问。
+
+**业务价值** —— SSO 证明**人是谁**;SPIFFE 证明**工作负载是什么**。GUI 登录与工具调用是
+同一个零信任故事的两半 —— 边缘的人的身份 + 链路上的工作负载身份 —— 两侧都**没有共享密钥**。
+
+> **运维提示。** 重建 `open-webui` 容器（例如改了环境变量后）会给它一个新的网络命名空间,
+> 从而让它的 `envoy-client` sidecar 掉线孤立。用
+> `docker compose up -d --force-recreate envoy-client` 重新挂载,否则网格路径（第 2 步 / G2）
+> 会在 `localhost:10000` 报 `Connection refused`。
 
 ---
 
