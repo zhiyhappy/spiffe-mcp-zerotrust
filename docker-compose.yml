@@ -100,7 +100,9 @@ services:
       - "app=openwebui"
     environment:
       - WEBUI_URL=${WEBUI_URL:-https://spiffe.ethandemo.com}
-      - ENABLE_OAUTH_SIGNUP=true
+      # Signup is DISABLED: only accounts that already exist can log in via SSO.
+      # (Both admins are already provisioned; no new auto-provisioning.)
+      - ENABLE_OAUTH_SIGNUP=false
       - OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true
       # Entra cloud-only accounts (e.g. se2@ethanzhi.onmicrosoft.com) have no mailbox, so the
       # Microsoft userinfo response omits the `email` claim and only returns `preferred_username`.

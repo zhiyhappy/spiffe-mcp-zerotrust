@@ -15,8 +15,16 @@
 		reverse_proxy unix//run/oidc/server.sock
 	}
 
-	# Everything else -> Open WebUI
-	handle {
+	# Open WebUI is NOT exposed to the public internet: only the source-IP
+	# allowlist may reach it (the /.well-known + /keys federation endpoints above
+	# stay world-readable so Entra can verify JWT-SVIDs). Caddy sees the real
+	# client IP through Docker's published ports, so remote_ip filtering is
+	# reliable here. Anyone else gets 403.
+	@allowed remote_ip 202.181.131.0/24 4.190.190.194/32
+	handle @allowed {
 		reverse_proxy open-webui:8080
+	}
+	handle {
+		respond "Forbidden" 403
 	}
 }
