@@ -102,6 +102,11 @@ services:
       - WEBUI_URL=${WEBUI_URL:-https://spiffe.ethandemo.com}
       - ENABLE_OAUTH_SIGNUP=true
       - OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true
+      # Entra cloud-only accounts (e.g. se2@ethanzhi.onmicrosoft.com) have no mailbox, so the
+      # Microsoft userinfo response omits the `email` claim and only returns `preferred_username`.
+      # Open WebUI requires an email claim; without this override it fails the callback with the
+      # misleading "email or password provided is incorrect". Use preferred_username as the email.
+      - OAUTH_EMAIL_CLAIM=preferred_username
       # Microsoft Entra ID (native "microsoft" provider). Redirect URI to register:
       #   https://<PUBLIC_DOMAIN>/oauth/microsoft/callback
       - MICROSOFT_CLIENT_ID=${ENTRA_CLIENT_ID}
