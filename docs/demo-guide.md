@@ -313,6 +313,16 @@ scripts/mcp-call.sh find_employees Platform  # filtered query, same secured path
 Contrast with **Step 3** (the `hacker` container gets `Broken pipe` / `Could not connect`):
 same network, no identity, no access.
 
+> **Wiring it into the Open WebUI GUI (Admin → Settings → Tools → MCP).** Add an MCP server
+> with URL `http://localhost:10000/mcp` — that's the `envoy-client` sidecar *inside* the
+> open-webui container, so the **backend** reaches the MCP server over mTLS. Open WebUI stores
+> and uses this connection from the backend, and it works. **The in-browser "connection test"
+> badge will show red / an error — that is expected and cosmetic:** your browser's `localhost`
+> is your laptop, not the container, and by design nothing outside the mesh (not even the
+> browser) can reach `:10000`. The tools still fire from the backend; verify with
+> `scripts/mcp-call.sh`. (Don't expose `/mcp` publicly just to turn the badge green — that would
+> make the tool callable from the open internet and undercut the zero-trust story.)
+
 **Why it matters** — SSO proves *who the human is*; SPIFFE proves *what the workload is*. The
 GUI login and the tool call are two halves of the same zero-trust story — human identity at the
 edge, workload identity on the wire — with **no shared secret** on either side.

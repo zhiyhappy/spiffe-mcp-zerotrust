@@ -296,6 +296,14 @@ scripts/mcp-call.sh find_employees Platform  # 过滤查询,同一条受保护�
 与**第 3 步**对比（`hacker` 容器得到 `Broken pipe` / `Could not connect`）:
 同一网络、无身份、无访问。
 
+> **在 Open WebUI GUI 里接入(Admin → Settings → Tools → MCP)。** 添加一个 MCP server,
+> URL 填 `http://localhost:10000/mcp` —— 这是 open-webui 容器**内部**的 `envoy-client` sidecar,
+> 所以**后端**会经 mTLS 连到 MCP server。Open WebUI 从后端保存并使用这条连接,是能用的。
+> **但 GUI 里那个"连接测试"红色徽标会报错 —— 这是正常且仅为表象:** 你浏览器里的 `localhost`
+> 是你自己的电脑,不是容器;按设计,网格之外的任何人(包括浏览器)都无法触达 `:10000`。
+> 工具依然由后端正常调用,可用 `scripts/mcp-call.sh` 验证。(不要为了把徽标变绿就把 `/mcp`
+> 对公网暴露 —— 那会让工具可从公网直接调用,削弱零信任叙事。)
+
 **业务价值** —— SSO 证明**人是谁**;SPIFFE 证明**工作负载是什么**。GUI 登录与工具调用是
 同一个零信任故事的两半 —— 边缘的人的身份 + 链路上的工作负载身份 —— 两侧都**没有共享密钥**。
 
