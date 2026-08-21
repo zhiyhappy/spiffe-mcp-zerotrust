@@ -99,6 +99,9 @@
 <path d="M115,664 L55,664 L55,210 L990,210 L990,118 L1015,118" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="6,4" marker-end="url(#ar-orange)"/>
 <rect x="513.88" y="193" width="92.24000000000001" height="16" fill="#ffffff" opacity="0.92" rx="2"/>
 <text x="560" y="203" text-anchor="middle" font-size="11" font-weight="600" fill="#c2410c">Entra OIDC SSO</text>
+<path d="M1015,120 L1000,120 L1000,235 L300,235 L300,298" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="6,4" marker-end="url(#ar-orange)"/>
+<rect x="545" y="227" width="190" height="16" fill="#ffffff" opacity="0.92" rx="2"/>
+<text x="640" y="239" text-anchor="middle" font-size="10" font-weight="600" fill="#c2410c">Entra fetches SPIRE JWKS (/keys)</text>
 <path d="M680,469 L1235,469 L1235,118 L1220,118" fill="none" stroke="#4f46e5" stroke-width="1.8" stroke-dasharray="6,4" marker-end="url(#ar-indigo)"/>
 <rect x="852.94" y="452.5" width="294.12" height="15.5" fill="#ffffff" opacity="0.92" rx="2"/>
 <text x="1000" y="462" text-anchor="middle" font-size="10.5" font-weight="600" fill="#4338ca">JWT-SVID -&gt; Entra token  (Step B, zero secret)</text>
