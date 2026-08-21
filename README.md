@@ -10,13 +10,7 @@ The Envoy proxies run as **true sidecars** (shared network namespace with their 
 so applications speak plain HTTP to `localhost` and the mesh transparently upgrades it
 to mTLS — the deployment shape used in real SPIFFE/Istio meshes.
 
-```
-                       ┌─ open-webui netns ─┐          ┌─ mcp-server netns ─┐
-Human ─OIDC/SSO▶ Open WebUI ─▶ 127.0.0.1:10000 ═mTLS═▶ mcp-server:9000 ─▶ 127.0.0.1:8000 ─▶ MCP (FastMCP/SQLite)
-                  │        (envoy-client)                 (envoy-server)         (MCP binds loopback only)
-                  │         spiffe://ethandemo.com/agent   spiffe://ethandemo.com/mcp-server
-Microsoft Entra ID┘   SDS: X.509-SVID ◀── SPIRE server + agent ── OIDC Discovery Provider ─ Caddy ▶ https://spiffe.ethandemo.com
-```
+![Architecture: SPIFFE/SPIRE zero-trust demo — mTLS mesh + workload federation](docs/architecture.png)
 
 Plus **workload federation (Step B)**: a workload exchanges its SPIRE **JWT-SVID** for a
 Microsoft Entra token with **no client secret** (see below).
