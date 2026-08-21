@@ -1,6 +1,6 @@
 # SPIFFE / SPIRE zero-trust demo
 #
-# Architecture (see lab.jpeg):
+# Architecture (see docs/architecture.png):
 #   Human User --OIDC/SSO--> Open WebUI (Entra login)
 #   Open WebUI --plain HTTP--> envoy-client:10000 --mTLS--> envoy-server:9000 --plain HTTP--> mcp-server:8000
 #   SPIRE (server+agent) issues X.509-SVIDs to the Envoy sidecars via SDS over a shared UDS.

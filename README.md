@@ -1,6 +1,6 @@
 # SPIFFE / SPIRE Zero-Trust Demo
 
-A self-contained Docker Compose lab (see `lab.jpeg`) showing **workload identity with
+A self-contained Docker Compose lab (see `docs/architecture.png`) showing **workload identity with
 SPIFFE/SPIRE**: two Envoy sidecars authenticate to each other over **mTLS** using
 short-lived X.509-SVIDs fetched via SDS, an **AI agent (Open WebUI)** calls an
 **MCP server (FastMCP + SQLite)** through that secure channel, users log in via
