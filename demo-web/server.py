@@ -190,6 +190,43 @@ STEPS = [
         "edge": "ok",
         "expect": {"contains": "Got an Entra access token", "label": "访问已恢复"},
     },
+    {
+        "id": "idira",
+        "title": "13 · 平滑演进:CyberArk Idira 可接管的组件",
+        "desc": "本 demo 用开源 SPIRE 自建了身份控制面。今后可平滑演进为 CyberArk Idira:"
+                "紫色高亮的组件(SPIRE Server / Agent、OIDC Discovery,以及零密钥云联邦)"
+                "由 Idira 托管接管;Envoy 数据面 mTLS、业务应用与云 IdP 保持不变。"
+                "下方输出列出完整归属对照。",
+        "cmd": (
+            "cat <<'IDIRA'\n"
+            "CyberArk Idira 平滑演进 —— 本 demo 组件的未来归属\n"
+            "================================================================\n"
+            "\n"
+            "【Idira 可接管:身份控制面 + 联邦经纪】\n"
+            "  SPIRE Server            -> 身份权威 / 签发 X.509 & JWT-SVID / 注册即授权(托管控制台)\n"
+            "  SPIRE Agent             -> 节点 & 工作负载认证,经 SDS 下发 SVID\n"
+            "  OIDC Discovery Provider -> 内置 OIDC issuer,对外发布 JWKS\n"
+            "  零密钥云联邦(-> Entra) -> Idira 核心:把 SVID 经纪为云令牌 / Conjur / Secrets Hub 密钥\n"
+            "\n"
+            "【部分接管】\n"
+            "  Caddy                   -> 发布 JWKS 那半被 Idira issuer 吸收;SSO 反代 / TLS 边缘仍保留\n"
+            "\n"
+            "【保持不变(Idira 不替代)】\n"
+            "  envoy-client/-server    -> 数据面 mTLS 执行仍是 Envoy/网格,Idira 作为其 SDS/SVID 来源接入\n"
+            "  Open WebUI / MCP Server -> 业务应用本身\n"
+            "  Microsoft Entra ID      -> 云 IdP,作为被联邦的对端\n"
+            "\n"
+            "结论:拔掉 SPIRE server/agent/oidc 三件套 -> 换成 Idira;\n"
+            "      Envoy 的 SDS 源改指向 Idira;联邦目标可扩展到 Conjur / Secrets Hub。\n"
+            "      业务应用与 mTLS 数据面几乎不动 —— 可平滑演进到 Idira 架构。\n"
+            "IDIRA"
+        ),
+        "nodes": ["spire-server", "spire-agent", "oidc"],
+        "edges": ["e-srv-agent", "e-agent-oidc", "e-oidc-caddy", "e-app-entra"],
+        "edge": "evolve",
+        "expect": {"contains": ["CyberArk Idira", "可平滑演进到 Idira 架构"],
+                   "label": "已标注可演进到 Idira 的组件"},
+    },
 ]
 
 STEP_BY_ID = {s["id"]: s for s in STEPS}

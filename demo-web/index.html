@@ -9,6 +9,7 @@
     --bg:#0d1117; --panel:#161b22; --panel2:#1c2530; --border:#30363d;
     --ink:#e6edf3; --muted:#8b949e; --blue:#3b82f6; --green:#22c55e;
     --red:#ef4444; --amber:#f59e0b; --node:#21262d; --nodeln:#3d4451;
+    --violet:#a855f7;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -43,6 +44,8 @@
     filter:drop-shadow(0 0 7px rgba(239,68,68,.75))}
   .node.ok rect{stroke:var(--green);stroke-width:3;
     filter:drop-shadow(0 0 7px rgba(34,197,94,.75))}
+  .node.evolve rect{stroke:var(--violet);stroke-width:3;stroke-dasharray:7 4;
+    filter:drop-shadow(0 0 8px rgba(168,85,247,.8))}
   .edge{stroke:var(--nodeln);stroke-width:1.8;fill:none;opacity:.5;
     transition:all .25s ease}
   .edge.hidden{opacity:0}
@@ -51,6 +54,8 @@
   .edge.bad{stroke:var(--red);stroke-width:3.4;opacity:1;
     stroke-dasharray:8 5;animation:dash 1s linear infinite}
   .edge.ok{stroke:var(--green);stroke-width:3.4;opacity:1;
+    stroke-dasharray:8 5;animation:dash 1s linear infinite}
+  .edge.evolve{stroke:var(--violet);stroke-width:3.4;opacity:1;
     stroke-dasharray:8 5;animation:dash 1s linear infinite}
   .elabel{fill:var(--muted);font-size:13px}
   @keyframes dash{to{stroke-dashoffset:-26}}
@@ -181,6 +186,7 @@
       <span><i style="background:var(--blue)"></i>正常路径 / 高亮</span>
       <span><i style="background:var(--red)"></i>被拒 / 撤销</span>
       <span><i style="background:var(--green)"></i>恢复</span>
+      <span><i style="background:var(--violet)"></i>未来可由 CyberArk Idira 接管</span>
     </div>
   </div>
 
@@ -230,13 +236,14 @@ function clearHighlight(){
   // Removing the state classes reverts each edge to its base style; the
   // impostor-only edge keeps its `hidden` class and stays invisible until a
   // step adds a state class to it.
-  document.querySelectorAll(".node").forEach(n=>n.classList.remove("active","bad","ok"));
-  document.querySelectorAll(".edge").forEach(e=>e.classList.remove("active","bad","ok"));
+  document.querySelectorAll(".node").forEach(n=>n.classList.remove("active","bad","ok","evolve"));
+  document.querySelectorAll(".edge").forEach(e=>e.classList.remove("active","bad","ok","evolve"));
 }
 
 function applyHighlight(step){
   clearHighlight();
-  const cls = step.edge === "bad" ? "bad" : step.edge === "ok" ? "ok" : "active";
+  const cls = step.edge === "bad" ? "bad" : step.edge === "ok" ? "ok"
+            : step.edge === "evolve" ? "evolve" : "active";
   (step.nodes||[]).forEach(id=>{ const el=$("n-"+id); if(el) el.classList.add(cls); });
   (step.edges||[]).forEach(id=>{ const el=$(id); if(el) el.classList.add(cls); });
 }
