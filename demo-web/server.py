@@ -59,15 +59,26 @@ STEPS = [
     {
         "id": "svid",
         "title": "3 · 工作负载获取 SVID",
-        "desc": "Agent 侧工作负载经 Workload API 向 SPIRE Agent 申请身份。"
-                "Agent 通过 docker 标签完成认证,签发 X.509-SVID —— 全程零密钥。"
-                "(记住这条命令:第 10 步撤销注册后,同一条命令会被拒绝。)",
-        "cmd": f"{DC} exec -T federation-demo "
-               "spire-agent api fetch x509 -socketPath /tmp/spire-sockets/api.sock",
-        "nodes": ["spire-agent", "app"],
-        "edges": ["e-agent-app"],
+        "desc": "两侧工作负载各自经 Workload API 向 SPIRE Agent 申请身份。Agent 通过各容器的 "
+                "docker 标签分别认证:app=openwebui → /agent,app=mcp-server → /mcp-server —— "
+                "各拿各的,全程零密钥,拿不到别人的证书。"
+                "(记住第一条命令:第 10 步撤销注册后,同一条命令会被拒绝。)",
+        "cmd": (
+            "echo '=== Agent 侧 (federation-demo, app=openwebui) ==='; "
+            + DC + " exec -T federation-demo "
+            "spire-agent api fetch x509 -socketPath /tmp/spire-sockets/api.sock "
+            "| grep -E 'Received|SPIFFE ID|SVID Valid'; "
+            "echo; echo '=== MCP 侧 (federation-impostor, app=mcp-server) ==='; "
+            + DC + " exec -T federation-impostor "
+            "spire-agent api fetch x509 -socketPath /tmp/spire-sockets/api.sock "
+            "| grep -E 'Received|SPIFFE ID|SVID Valid'"
+        ),
+        "nodes": ["spire-agent", "app", "mcp"],
+        "edges": ["e-agent-app", "e-agent-mcp"],
         "edge": "on",
-        "expect": {"contains": "spiffe://ethandemo.com/agent", "label": "已签发 X.509-SVID"},
+        "expect": {"contains": ["spiffe://ethandemo.com/agent",
+                                "spiffe://ethandemo.com/mcp-server"],
+                   "label": "两侧均已签发 X.509-SVID"},
     },
     {
         "id": "mtls",

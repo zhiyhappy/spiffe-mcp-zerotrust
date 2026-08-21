@@ -272,8 +272,10 @@ function verdictFor(s, output){
   const exp = s.expect;
   if(!exp || !exp.contains) return null;
   const hay = exp.ci ? output.toLowerCase() : output;
-  const needle = exp.ci ? exp.contains.toLowerCase() : exp.contains;
-  return { ok: hay.includes(needle), label: exp.label || ("包含 “"+exp.contains+"”") };
+  // contains may be a single string or an array (all must be present).
+  const needles = Array.isArray(exp.contains) ? exp.contains : [exp.contains];
+  const ok = needles.every(n => hay.includes(exp.ci ? n.toLowerCase() : n));
+  return { ok: ok, label: exp.label || ("包含 “"+needles.join(" + ")+"”") };
 }
 
 function showVerdict(v){
