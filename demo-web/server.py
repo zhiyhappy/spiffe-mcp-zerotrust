@@ -194,8 +194,10 @@ STEPS = [
         "id": "idira",
         "title": "13 · 平滑演进:CyberArk Idira 可接管的组件",
         "desc": "本 demo 用开源 SPIRE 自建了身份控制面。今后可平滑演进为 CyberArk Idira:"
-                "紫色高亮的组件(SPIRE Server / Agent、OIDC Discovery,以及零密钥云联邦)"
-                "由 Idira 托管接管;Envoy 数据面 mTLS、业务应用与云 IdP 保持不变。"
+                "紫色高亮的是 Idira 可接管的部分 —— SPIRE Server / Agent、OIDC Discovery "
+                "三件套(完全接管),以及 OIDC→Caddy→Entra 这条 JWKS 发布/验证链"
+                "(Idira 自带 issuer,吸收 Caddy 对外发布 JWKS 的那半)。"
+                "而工作负载→Entra 的联邦请求本身、Envoy 数据面 mTLS、业务应用与云 IdP 保持不变。"
                 "下方输出列出完整归属对照。",
         "cmd": (
             "cat <<'IDIRA'\n"
@@ -222,7 +224,7 @@ STEPS = [
             "IDIRA"
         ),
         "nodes": ["spire-server", "spire-agent", "oidc"],
-        "edges": ["e-srv-agent", "e-agent-oidc", "e-oidc-caddy", "e-app-entra"],
+        "edges": ["e-srv-agent", "e-agent-oidc", "e-oidc-caddy", "e-caddy-entra"],
         "edge": "evolve",
         "expect": {"contains": ["CyberArk Idira", "可平滑演进到 Idira 架构"],
                    "label": "已标注可演进到 Idira 的组件"},
