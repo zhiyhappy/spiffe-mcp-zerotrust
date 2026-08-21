@@ -66,6 +66,8 @@ services:
   oidc-discovery-provider:
     image: ghcr.io/spiffe/oidc-discovery-provider:1.9.6
     depends_on: [spire-agent]
+    labels:
+      - "app=oidc-discovery-provider"   # -> SPIFFE ID spiffe://ethandemo.com/oidc-discovery-provider (needed to fetch JWKS via Workload API)
     command: ["-config", "/conf/oidc-discovery-provider.conf"]
     volumes:
       - ./spire/oidc-discovery-provider/oidc-discovery-provider.conf:/conf/oidc-discovery-provider.conf:ro

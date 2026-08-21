@@ -21,6 +21,8 @@ register() {
 register "spiffe://${TRUST_DOMAIN}/agent"      "openwebui"
 # MCP side -> presented by envoy-server
 register "spiffe://${TRUST_DOMAIN}/mcp-server" "mcp-server"
+# OIDC discovery provider -> needs an identity to fetch the JWT bundle (JWKS) via the Workload API
+register "spiffe://${TRUST_DOMAIN}/oidc-discovery-provider" "oidc-discovery-provider"
 
 echo "[entries] current entries:"
 spire-server entry show || true
