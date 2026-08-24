@@ -612,24 +612,39 @@ STEPS = [
                   "publish/verify chain (Idira ships its own issuer, absorbing the half "
                   "where Caddy publishes JWKS). The workload→Entra federation request "
                   "itself, the Envoy data-plane mTLS, the business apps and the cloud "
-                  "IdP stay unchanged. The output below lists the full mapping.",
+                  "IdP stay unchanged. Two more violet callouts mark Idira-native "
+                  "additions: the Sidecar Injector (a K8s mutating webhook that "
+                  "auto-injects the envoy-client sidecar) and the Identity Broker "
+                  "fronting MCP (validates agent identity, enforces policy, forwards "
+                  "the MCP call — so MCP needs no sidecar of its own). The output below "
+                  "lists the full mapping.",
                   "本 demo 用开源 SPIRE 自建了身份控制面。今后可平滑演进为 CyberArk Idira:"
                   "紫色高亮的是 Idira 可接管的部分 —— SPIRE Server / Agent、OIDC Discovery "
                   "三件套(完全接管),以及 OIDC→Caddy→Entra 这条 JWKS 发布/验证链"
                   "(Idira 自带 issuer,吸收 Caddy 对外发布 JWKS 的那半)。"
                   "而工作负载→Entra 的联邦请求本身、Envoy 数据面 mTLS、业务应用与云 IdP 保持不变。"
-                  "下方输出列出完整归属对照。",
+                  "图中另有两处紫色标注是 Idira 原生增强:Sidecar Injector"
+                  "(K8s mutating webhook,自动把 envoy-client sidecar 注入 Pod)"
+                  "与位于 MCP 前的 Identity Broker(校验 agent 身份、执行策略、转发 MCP 调用"
+                  " —— MCP 自身无需 sidecar)。下方输出列出完整归属对照。",
                   "이 demo는 오픈소스 SPIRE로 신원 컨트롤 플레인을 구축했습니다. 향후 CyberArk "
                   "Idira로 원활하게 진화할 수 있습니다: 보라색으로 강조된 부분이 Idira가 인수할 수 "
                   "있는 것입니다 -- SPIRE Server / Agent와 OIDC Discovery 3종(완전 인수), 그리고 "
                   "OIDC→Caddy→Entra의 JWKS 게시/검증 체인(Idira는 자체 issuer를 제공하여 Caddy가 "
                   "JWKS를 게시하는 절반을 흡수). 워크로드→Entra 페더레이션 요청 자체, Envoy 데이터 "
-                  "플레인 mTLS, 비즈니스 앱과 클라우드 IdP는 그대로 유지됩니다. 아래 출력에 전체 귀속 "
+                  "플레인 mTLS, 비즈니스 앱과 클라우드 IdP는 그대로 유지됩니다. 그림의 보라색 주석 두 "
+                  "개는 Idira 네이티브 추가 기능입니다: Sidecar Injector(K8s mutating webhook로 "
+                  "envoy-client sidecar를 자동 주입)와 MCP 앞단의 Identity Broker(agent 신원 검증, "
+                  "정책 집행, MCP 호출 전달 — MCP 자체는 sidecar 불필요). 아래 출력에 전체 귀속 "
                   "대조표를 표시합니다."),
         "cmd": L(IDIRA_EN, IDIRA_ZH, IDIRA_KO),
         "nodes": ["spire-server", "spire-agent", "oidc"],
         "edges": ["e-srv-agent", "e-agent-oidc", "e-oidc-caddy", "e-caddy-entra"],
         "edge": "evolve",
+        # Idira-native additions annotated on the diagram (violet callouts):
+        # the Sidecar Injector on the agent/envoy-client node, and the Identity
+        # Broker sitting on the agent→MCP path. Shown only on this step.
+        "extras": ["idira-injector", "idira-broker"],
         "expect": {"contains": L(["CyberArk Idira", "can smoothly evolve to the Idira architecture"],
                                  ["CyberArk Idira", "可平滑演进到 Idira 架构"],
                                  ["CyberArk Idira", "Idira 아키텍처로 원활하게 진화"]),
@@ -661,6 +676,7 @@ def public_steps(lang):
             "nodes": s["nodes"],
             "edges": s["edges"],
             "edge": s["edge"],
+            "extras": s.get("extras", []),
             "expect": {
                 "contains": _pick(exp.get("contains"), lang),
                 "label": _pick(exp.get("label"), lang),

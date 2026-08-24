@@ -61,6 +61,16 @@
   .edge.evolve{stroke:var(--violet);stroke-width:3.4;opacity:1;
     stroke-dasharray:8 5;animation:dash 1s linear infinite}
   .elabel{fill:var(--muted);font-size:13px}
+  /* Idira-native callouts (Sidecar Injector / Identity Broker): hidden until the
+     step opts in via step.extras, then faded in as violet dashed annotations. */
+  .idira-extra{opacity:0;pointer-events:none;transition:opacity .25s ease}
+  .idira-extra.show{opacity:1}
+  .idira-extra rect{fill:rgba(168,85,247,.10);stroke:var(--violet);stroke-width:2;
+    stroke-dasharray:7 4;filter:drop-shadow(0 0 7px rgba(168,85,247,.6))}
+  .idira-extra .nt{fill:var(--violet);font-size:16px;font-weight:600}
+  .idira-extra .ns{fill:#d9b8ff;font-size:12px}
+  .idira-extra .conn{stroke:var(--violet);stroke-width:2.4;fill:none;
+    stroke-dasharray:6 4;opacity:.9;animation:dash 1s linear infinite}
   @keyframes dash{to{stroke-dashoffset:-26}}
   .legend{display:flex;gap:18px;padding:8px 4px 0;font-size:12.5px;color:var(--muted);
     flex-wrap:wrap;flex:0 0 auto}
@@ -189,6 +199,20 @@
         <text class="t" x="864" y="366" text-anchor="middle">Hacker</text>
         <text class="s" x="864" y="388" text-anchor="middle" data-i18n="nsHacker">No sidecar · no SVID</text>
       </g>
+
+      <!-- Idira-native callouts (violet, shown only on step 14 via step.extras) -->
+      <g class="idira-extra" id="idira-injector">
+        <path class="conn" d="M520 92 L520 120"/>
+        <rect x="402" y="44" width="236" height="48" rx="9"/>
+        <text class="nt" x="520" y="68" text-anchor="middle">Sidecar Injector</text>
+        <text class="ns" x="520" y="85" text-anchor="middle" data-i18n="exInjector">auto-injects envoy-client (K8s webhook)</text>
+      </g>
+      <g class="idira-extra" id="idira-broker">
+        <path class="conn" d="M520 288 L616 284"/>
+        <rect x="616" y="246" width="196" height="56" rx="9"/>
+        <text class="nt" x="714" y="272" text-anchor="middle">Identity Broker</text>
+        <text class="ns" x="714" y="290" text-anchor="middle" data-i18n="exBroker">validate agent id · policy · forward MCP</text>
+      </g>
     </svg>
     <div class="legend">
       <span><i style="background:var(--blue)"></i><span data-i18n="legNormal">Normal path / highlight</span></span>
@@ -263,6 +287,8 @@ const UI = {
     elAttest:"Node attest / issue",
     elJwksPub:"JWKS (public)",
     elDenied:"Denied",
+    exInjector:"auto-injects envoy-client (K8s webhook)",
+    exBroker:"validate agent id · policy · forward MCP",
   },
   zh: {
     docTitle:"SPIFFE / SPIRE 零信任演示",
@@ -298,6 +324,8 @@ const UI = {
     elAttest:"节点认证 / 签发",
     elJwksPub:"JWKS(公网)",
     elDenied:"被拒",
+    exInjector:"自动注入 envoy-client(K8s webhook)",
+    exBroker:"校验 agent 身份 · 策略 · 转发 MCP",
   },
   ko: {
     docTitle:"SPIFFE / SPIRE 제로 트러스트 데모",
@@ -333,6 +361,8 @@ const UI = {
     elAttest:"노드 인증 / 발급",
     elJwksPub:"JWKS(공개)",
     elDenied:"거부됨",
+    exInjector:"envoy-client 자동 주입(K8s webhook)",
+    exBroker:"agent 신원 검증 · 정책 · MCP 전달",
   },
 };
 
@@ -383,6 +413,7 @@ function clearHighlight(){
   // step adds a state class to it.
   document.querySelectorAll(".node").forEach(n=>n.classList.remove("active","bad","ok","evolve"));
   document.querySelectorAll(".edge").forEach(e=>e.classList.remove("active","bad","ok","evolve"));
+  document.querySelectorAll(".idira-extra").forEach(e=>e.classList.remove("show"));
 }
 
 function applyHighlight(step){
@@ -391,6 +422,11 @@ function applyHighlight(step){
             : step.edge === "evolve" ? "evolve" : "active";
   (step.nodes||[]).forEach(id=>{ const el=$("n-"+id); if(el) el.classList.add(cls); });
   (step.edges||[]).forEach(id=>{ const el=$(id); if(el) el.classList.add(cls); });
+  // Idira-native annotation callouts: only the ids in step.extras are shown.
+  const extras = new Set(step.extras||[]);
+  document.querySelectorAll(".idira-extra").forEach(el=>{
+    el.classList.toggle("show", extras.has(el.id));
+  });
 }
 
 function renderStep(i, {run=false}={}){
