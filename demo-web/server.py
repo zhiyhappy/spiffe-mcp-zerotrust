@@ -13,7 +13,9 @@ command, so there is no arbitrary command execution.
 
 Internationalisation: user-facing strings (title/desc/expect + a few commands
 whose output text is localised) are stored as {"en":..., "zh":..., "ko":...} dicts
-and resolved per request via `_pick`. The default language is English.
+and resolved per request via `_pick`. The default language is English. Traditional
+Chinese (zh-TW) is auto-derived from the Simplified (zh) text by `_to_traditional`,
+so it needs no separate strings.
 
 WARNING: anyone who can reach this port can drive the whole demo (including
 `entry delete`). Keep it behind the NSG allowlist; do not expose it publicly.
@@ -32,8 +34,37 @@ PUBLIC_DOMAIN = os.environ.get("PUBLIC_DOMAIN", "spiffe.ethandemo.com")
 
 DC = "docker compose"  # v2 plugin, run from REPO_ROOT so ./.env is loaded
 
-LANGS = ("en", "zh", "ko")
+LANGS = ("en", "zh", "zh-TW", "ko")
 DEFAULT_LANG = "en"
+
+# Traditional Chinese (zh-TW) is derived automatically from the Simplified (zh)
+# text so we keep a single source of truth. _S2T_WORDS runs first to resolve the
+# handful of one-Simplified→many-Traditional cases that char mapping gets wrong
+# (注册→註冊, 标注→標註, 标签→標籤 — 注/签 differ by context), then _S2T_CHARS
+# does a per-character substitution covering every glyph used on this page.
+_S2T_WORDS = (("注册", "註冊"), ("标注", "標註"), ("标签", "標籤"),
+              ("托管", "託管"), ("并入", "併入"), ("发布", "發佈"))
+_S2T_CHARS = {s: t for s, t in (
+    "与與 业業 两兩 个個 为為 书書 云雲 从從 仅僅 众眾 会會 册冊 准準 凭憑 击擊 "
+    "删刪 别別 务務 动動 单單 双雙 发發 变變 后後 员員 周週 图圖 声聲 处處 备備 "
+    "复復 实實 对對 将將 尝嘗 属屬 带帶 并並 应應 开開 强強 归歸 当當 径徑 态態 "
+    "总總 户戶 扑撲 执執 扩擴 担擔 拟擬 择擇 挂掛 换換 据據 数數 断斷 无無 时時 "
+    "显顯 机機 权權 条條 来來 构構 标標 没沒 点點 状狀 独獨 现現 码碼 确確 称稱 "
+    "签簽 简簡 约約 级級 纪紀 组組 织織 经經 结結 绕繞 给給 绝絕 统統 继繼 绪緒 "
+    "续續 缘緣 网網 职職 联聯 节節 获獲 见見 览覽 认認 记記 访訪 证證 试試 该該 "
+    "误誤 请請 读讀 调調 负負 责責 败敗 资資 转轉 载載 输輸 边邊 过過 运運 这這 "
+    "进進 连連 选選 里裡 鉴鑑 钥鑰 链鏈 销銷 错錯 问問 间間 随隨 页頁 颁頒 预預 "
+    "驱驅 验驗 骤驟 于於 侧側 体體 几幾 内內".split())}
+
+
+def _to_traditional(s):
+    if isinstance(s, (list, tuple)):
+        return [_to_traditional(x) for x in s]
+    if not isinstance(s, str):
+        return s
+    for a, b in _S2T_WORDS:
+        s = s.replace(a, b)
+    return "".join(_S2T_CHARS.get(c, c) for c in s)
 
 
 def L(en, zh, ko):
@@ -43,8 +74,11 @@ def L(en, zh, ko):
 
 def _pick(v, lang):
     """Resolve a possibly-translatable value for `lang`, defaulting to English.
-    Plain strings/lists (same in every language) are returned unchanged."""
+    Plain strings/lists (same in every language) are returned unchanged.
+    zh-TW is auto-derived from the Simplified (zh) value."""
     if isinstance(v, dict) and "en" in v:
+        if lang == "zh-TW":
+            return _to_traditional(v.get("zh") or v["en"])
         return v.get(lang) or v["en"]
     return v
 
