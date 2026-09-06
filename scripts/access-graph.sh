@@ -42,15 +42,28 @@ json_get() { printf '%s' "$1" | sed -n "s/.*\"$2\":\"\([^\"]*\)\".*/\1/p" | head
 say "== 1) Fetch a JWT-SVID from SPIRE (audience=${AUDIENCE}) ==" \
     "== 1) 从 SPIRE 获取 JWT-SVID (audience=${AUDIENCE}) ==" \
     "== 1) SPIRE에서 JWT-SVID 획득 (audience=${AUDIENCE}) =="
-JWT_RAW="$(spire-agent api fetch jwt -audience "${AUDIENCE}" -socketPath "${SOCK}" 2>&1)" || {
-  echo "ERROR: spire-agent could not fetch a JWT-SVID:" >&2
-  printf '%s\n' "${JWT_RAW}" | head -n 3 >&2
+# If the registration entry was revoked, SPIRE refuses here -- before Entra is
+# ever contacted. That failure is itself a demo step, so make it a first-class,
+# localised message (the untranslated "DENIED" marker mirrors "SUCCESS" below and
+# is what the web UI matches on).
+no_svid() {
+  printf '%s\n' "${JWT_RAW}" | head -n 3
+  echo
+  say "== DENIED: SPIRE refused to issue a JWT-SVID (no valid registration for this workload). ==" \
+      "== DENIED: SPIRE 拒绝签发 JWT-SVID(该工作负载没有有效的注册条目)。 ==" \
+      "== DENIED: SPIRE가 JWT-SVID 발급을 거부했습니다(이 워크로드에 유효한 등록이 없음). =="
+  say "   No SVID -> no client assertion -> Entra is never even contacted. Cloud access is cut off." \
+      "   没有 SVID -> 就没有 client assertion -> 连 Entra 都不会被请求。云访问已被切断。" \
+      "   SVID 없음 -> 클라이언트 어서션 없음 -> Entra에 요청조차 하지 않음. 클라우드 접근이 차단됨."
   exit 1
 }
-JWT="$(printf '%s\n' "${JWT_RAW}" | grep -A1 -m1 '^token(' | tail -n1 | tr -d '[:space:]')"
+
+JWT_RAW="$(spire-agent api fetch jwt -audience "${AUDIENCE}" -socketPath "${SOCK}" 2>&1)" || no_svid
+# `|| true`: with pipefail a non-matching grep would abort under `set -e` before
+# the emptiness check below could report anything useful.
+JWT="$(printf '%s\n' "${JWT_RAW}" | grep -A1 -m1 '^token(' | tail -n1 | tr -d '[:space:]')" || true
 if [[ -z "${JWT}" ]]; then
-  echo "ERROR: no JWT-SVID returned. Is this container registered (matching docker label)?" >&2
-  exit 1
+  no_svid
 fi
 SUB="$(b64url_decode "$(printf '%s' "$JWT" | cut -d. -f2)" | sed -n 's/.*"sub":"\([^"]*\)".*/\1/p')"
 say "   SVID obtained; sub=${SUB}" \

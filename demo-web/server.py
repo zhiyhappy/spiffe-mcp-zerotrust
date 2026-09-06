@@ -54,7 +54,7 @@ _S2T_CHARS = {s: t for s, t in (
     "续續 缘緣 网網 职職 联聯 节節 获獲 见見 览覽 认認 记記 访訪 证證 试試 该該 "
     "误誤 请請 读讀 调調 负負 责責 败敗 资資 转轉 载載 输輸 边邊 过過 运運 这這 "
     "进進 连連 选選 里裡 鉴鑑 钥鑰 链鏈 销銷 错錯 问問 间間 随隨 页頁 颁頒 预預 "
-    "驱驅 验驗 骤驟 于於 侧側 体體 几幾 内內".split())}
+    "驱驅 验驗 骤驟 于於 侧側 体體 几幾 内內 张張 缓緩 环環 轮輪 浏瀏 录錄 传傳 响響".split())}
 
 
 def _to_traditional(s):
@@ -83,7 +83,7 @@ def _pick(v, lang):
     return v
 
 
-# ------------------------------------------------------------------ step 14 output
+# ------------------------------------------------------------------ step 15 output
 # The Idira "future ownership" mapping is pure informational content (not tool
 # output), so it is fully localised. Horizontal rule lines avoid the CJK
 # double-width box-misalignment problem.
@@ -586,8 +586,48 @@ STEPS = [
                               "거부됨(신원 획득 불가)")},
     },
     {
+        "id": "revoke-verify-cloud",
+        "title": L("12 · After Revocation, No Cloud Access Either (Entra cut off)",
+                   "12 · 撤销后也访问不了云(Entra 被切断)",
+                   "12 · 취소 후 클라우드 접근도 불가(Entra 차단)"),
+        "desc": L("Re-run step 8 from the AI-Agent side. The federation-demo container "
+                  "carries the same docker label as Open WebUI + envoy-client, so it holds "
+                  "the same identity spiffe://ethandemo.com/agent. Every Entra call starts "
+                  "by fetching a FRESH JWT-SVID -- nothing is cached -- so with the "
+                  "registration revoked the chain snaps at the very first link: no SVID -> "
+                  "no client assertion -> Entra is never even contacted. One deleted "
+                  "registration entry cuts off cloud access, with no secret to rotate "
+                  "anywhere. (Open WebUI's browser SSO login is a separate, classic "
+                  "client-secret OAuth flow and is not affected by SPIRE revocation.)",
+                  "从 AI Agent 侧重跑第 8 步。federation-demo 容器与 Open WebUI + envoy-client "
+                  "带有相同的 docker 标签,因此持有同一个身份 spiffe://ethandemo.com/agent。"
+                  "每次访问 Entra 都会重新获取一张全新的 JWT-SVID —— 不做任何缓存 —— "
+                  "所以注册被撤销后,整条链路在第一环就断了:拿不到 SVID -> 就没有 client assertion -> "
+                  "连 Entra 都不会被请求。删掉一条注册条目就切断了云访问,而且没有任何密钥需要轮换。"
+                  "(Open WebUI 浏览器登录用的 SSO 是另一条传统的 client secret OAuth 流程,"
+                  "不受 SPIRE 撤销影响。)",
+                  "AI Agent 측에서 8단계를 다시 실행합니다. federation-demo 컨테이너는 Open WebUI + "
+                  "envoy-client와 동일한 docker 라벨을 가지므로 같은 신원 "
+                  "spiffe://ethandemo.com/agent를 보유합니다. Entra 호출은 매번 새로운 JWT-SVID를 "
+                  "가져오는 것으로 시작하며 캐시를 전혀 사용하지 않습니다. 따라서 등록이 취소되면 "
+                  "체인은 첫 번째 고리에서 끊어집니다: SVID 없음 -> 클라이언트 어서션 없음 -> Entra에 "
+                  "요청조차 하지 않음. 등록 항목 하나를 삭제하는 것만으로 클라우드 접근이 차단되며, "
+                  "회전시켜야 할 시크릿은 어디에도 없습니다. (Open WebUI의 브라우저 SSO 로그인은 별개의 "
+                  "전통적인 클라이언트 시크릿 OAuth 흐름이며 SPIRE 취소의 영향을 받지 않습니다.)"),
+        "cmd": L(f"{DC} exec -T -e UILANG=en federation-demo /access-graph.sh",
+                 f"{DC} exec -T -e UILANG=zh federation-demo /access-graph.sh",
+                 f"{DC} exec -T -e UILANG=ko federation-demo /access-graph.sh"),
+        "nodes": ["app", "entra"],
+        "edges": ["e-app-entra"],
+        "edge": "bad",
+        "expect": {"contains": "DENIED",
+                   "label": L("No JWT-SVID -> Entra never contacted (cloud access cut off)",
+                              "拿不到 JWT-SVID -> 根本没请求 Entra(云访问被切断)",
+                              "JWT-SVID 없음 -> Entra에 요청조차 안 함(클라우드 접근 차단)")},
+    },
+    {
         "id": "restore",
-        "title": L("12 · Restore the Registration", "12 · 恢复注册", "12 · 등록 복원"),
+        "title": L("13 · Restore the Registration", "13 · 恢复注册", "13 · 등록 복원"),
         "desc": L("Re-register the workload entry. After about one sync period the "
                   "Agent is re-authorized and can issue SVIDs again.",
                   "重新注册工作负载条目。约一个同步周期后,Agent 重新获得授权并可再次签发 SVID。",
@@ -603,9 +643,9 @@ STEPS = [
     },
     {
         "id": "restore-verify",
-        "title": L("13 · Access Restored (end-to-end: read a cloud resource)",
-                   "13 · 访问恢复(端到端:读取云资源)",
-                   "13 · 접근 복원(엔드투엔드: 클라우드 리소스 읽기)"),
+        "title": L("14 · Access Restored (end-to-end: read a cloud resource)",
+                   "14 · 访问恢复(端到端:读取云资源)",
+                   "14 · 접근 복원(엔드투엔드: 클라우드 리소스 읽기)"),
         "desc": L("With registration restored, the workload -- using only its SPIFFE "
                   "identity (zero client secret) -- exchanges for a Microsoft Graph "
                   "access token at Entra and uses it to actually read an Azure cloud "
@@ -636,9 +676,9 @@ STEPS = [
     },
     {
         "id": "idira",
-        "title": L("14 · Smooth Evolution: Components CyberArk Idira Can Take Over",
-                   "14 · 平滑演进:CyberArk Idira 可接管的组件",
-                   "14 · 원활한 진화: CyberArk Idira가 인수할 수 있는 구성 요소"),
+        "title": L("15 · Smooth Evolution: Components CyberArk Idira Can Take Over",
+                   "15 · 平滑演进:CyberArk Idira 可接管的组件",
+                   "15 · 원활한 진화: CyberArk Idira가 인수할 수 있는 구성 요소"),
         "desc": L("This demo built an identity control plane with open-source SPIRE. It "
                   "can smoothly evolve into CyberArk Idira: highlighted in purple is "
                   "what Idira can take over -- the SPIRE Server / Agent and OIDC "
